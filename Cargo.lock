@@ -706,6 +706,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cita_trie"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f0bc31eabef0259183d03c3846ad6818eaa8e542c31dae751c9d22ea030fb7d"
+dependencies = [
+ "hasher",
+ "parking_lot 0.12.2",
+ "rlp",
+]
+
+[[package]]
 name = "clap"
 version = "4.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2296,6 +2307,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash 0.8.11",
+]
+
+[[package]]
+name = "hasher"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbba678b6567f27ce22870d951f4208e1dc2fef64993bd4521b1d497ef8a3aa"
+dependencies = [
+ "tiny-keccak",
 ]
 
 [[package]]
@@ -4281,10 +4301,12 @@ name = "rainbow-bridge-sdk"
 version = "0.1.0"
 dependencies = [
  "borsh 1.5.0",
+ "cita_trie",
  "config",
  "ethereum-types",
  "ethers",
  "ethers-core",
+ "hasher",
  "hex",
  "lazy_static",
  "near-crypto",
@@ -4292,6 +4314,8 @@ dependencies = [
  "near-jsonrpc-primitives",
  "near-primitives",
  "reqwest",
+ "rlp",
+ "serde",
  "serde_json",
  "thiserror",
  "tokio",

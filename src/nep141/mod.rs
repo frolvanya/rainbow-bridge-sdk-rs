@@ -3,7 +3,7 @@ use borsh::BorshSerialize;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::{AccountId, TransactionOrReceiptId}};
-use crate::{common::Env, near_on_eth_client::NearOnEthClient, near_rpc_client, result::{Error, Result}};
+use crate::{common::{Env, Error, Result}, eth_proof_generator, near_on_eth_client::NearOnEthClient, near_rpc_client};
 use light_client_proof::LightClientExecutionProof;
 
 mod light_client_proof;
@@ -13,6 +13,16 @@ abigen!(
     r#"[
       function newBridgeToken(string calldata nearTokenId, bytes memory proofData, uint64 proofBlockHeight) external returns (address)
       function deposit(bytes memory proofData, uint64 proofBlockHeight) external
+      function withdraw(string memory token, uint256 amount, string memory recipient) external
+      function nearToEthToken(string calldata nearTokenId) external view returns (address)
+    ]"#
+);
+
+abigen!(
+    ERC20,
+    r#"[
+      function allowance(address _owner, address _spender) public view returns (uint256 remaining)
+      function approve(address spender, uint256 amount) external returns (bool)
     ]"#
 );
 
@@ -110,7 +120,7 @@ impl Nep141Bridging {
         &self,
         near_token_id: String,
         receipt_id: CryptoHash,
-    ) -> Result<H256> {
+    ) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
@@ -163,7 +173,7 @@ impl Nep141Bridging {
         Ok(tx_hash)
     }
 
-    pub async fn mint(&self, receipt_id: CryptoHash) -> Result<H256> {
+    pub async fn mint(&self, receipt_id: CryptoHash) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
@@ -195,12 +205,64 @@ impl Nep141Bridging {
         Ok(tx.tx_hash())
     }
 
-    pub async fn burn() {
+    pub async fn burn(
+        &self,
+        near_token_id: String,
+        amount: U256,
+        receiver: String
+    ) -> Result<TxHash> {
+        let factory = self.bridge_token_factory()?;
 
+        let erc20_address = factory.near_to_eth_token(near_token_id.clone())
+            .call()
+            .await?;
+
+        let bridge_token = &self.bridge_token(erc20_address)?;
+
+        let signer = self.eth_signer()?;
+        let bridge_token_factory_address = self.bridge_token_factory_address()?;
+        let allowance = bridge_token.allowance(signer.address(), bridge_token_factory_address.clone())
+            .call()
+            .await?;
+
+        if allowance < amount {
+            bridge_token.approve(bridge_token_factory_address, amount - allowance)
+                .send()
+                .await?
+                .await
+                .map_err(|e| Error::EthRpcError(e.to_string()))?;
+
+            println!("Approved token for spending");
+        }
+
+        let withdraw_call = factory.withdraw(near_token_id, amount, receiver);
+
+        let tx = withdraw_call.send().await?;
+        Ok(tx.tx_hash())
     }
 
-    pub async fn withdraw() {
+    pub async fn withdraw(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
+        let eth_endpoint = self.eth_endpoint()?;
+        let near_endpoint = self.near_endpoint()?;
 
+        let proof = eth_proof_generator::get_proof_for_event(tx_hash, log_index, eth_endpoint)
+            .await?;
+
+        let mut args = Vec::new();
+        proof.serialize(&mut args)
+            .map_err(|_| Error::InvalidProof)?;
+
+        let tx_hash = near_rpc_client::methods::change(
+            near_endpoint,
+            self.near_signer()?,
+            self.token_locker_id.to_string(),
+            "withdraw".to_string(),
+            args,
+            300_000_000_000_000,
+            60_000_000_000_000_000_000_000
+        ).await?;
+        
+        Ok(tx_hash)
     }
 
     fn eth_endpoint(&self) -> Result<&str> {
@@ -236,28 +298,59 @@ impl Nep141Bridging {
             .as_ref()
             .ok_or(Error::ConfigError("Ethereum rpc endpoint not set".to_string()))?;
 
-        let eth_private_key = self.eth_private_key
-            .as_ref()
-            .ok_or(Error::ConfigError("Ethereum private key not set".to_string()))?;
-
-        let private_key_bytes = hex::decode(eth_private_key)
-            .map_err(|_| Error::ConfigError("Invalid ethereum private key".to_string()))?;
-        
-        let wallet = LocalWallet::from_bytes(&private_key_bytes)
-            .map_err(|_| Error::ConfigError("Invalid ethereum private key".to_string()))?
-            .with_chain_id(self.eth_chain_id);
-
         let eth_provider = Provider::<Http>::try_from(eth_endpoint)
             .map_err(|_| Error::ConfigError("Invalid ethereum rpc endpoint url".to_string()))?;
+
+        let wallet = self.eth_signer()?;
 
         let signer = SignerMiddleware::new(eth_provider, wallet);
         let client = Arc::new(signer);
 
         Ok(BridgeTokenFactory::new(
-            Address::from_str(&self.bridge_token_factory_address)
-                .map_err(|_| Error::ConfigError("Couldn't parse nep141_eth_token_factory".to_string()))?,
+            self.bridge_token_factory_address()?,
             client
         ))
+    }
+
+    fn bridge_token(&self, address: Address) -> Result<ERC20<SignerMiddleware<Provider<Http>,LocalWallet>>> {
+        let eth_endpoint = self.eth_endpoint
+            .as_ref()
+            .ok_or(Error::ConfigError("Ethereum rpc endpoint not set".to_string()))?;
+
+        let eth_provider = Provider::<Http>::try_from(eth_endpoint)
+            .map_err(|_| Error::ConfigError("Invalid ethereum rpc endpoint url".to_string()))?;
+
+        let wallet = self.eth_signer()?;
+
+        let signer = SignerMiddleware::new(eth_provider, wallet);
+        let client = Arc::new(signer);
+
+        Ok(ERC20::new(
+            address,
+            client
+        ))
+    }
+
+    fn eth_signer(&self) -> Result<LocalWallet> {
+        let eth_private_key = self.eth_private_key
+            .as_ref()
+            .ok_or(Error::ConfigError("Ethereum private key not set".to_string()))?;
+
+        let private_key_bytes = hex::decode(eth_private_key)
+            .map_err(|_| Error::ConfigError("Ethereum private key is not a valid hex string".to_string()))?;
+
+        if private_key_bytes.len() != 32 {
+            return Err(Error::ConfigError("Ethereum private key is of invalid length".to_string()));
+        }
+
+        Ok(LocalWallet::from_bytes(&private_key_bytes)
+            .map_err(|_| Error::ConfigError("Invalid ethereum private key".to_string()))?
+            .with_chain_id(self.eth_chain_id))
+    }
+
+    fn bridge_token_factory_address(&self) -> Result<Address> {
+        Address::from_str(&self.bridge_token_factory_address)
+            .map_err(|_| Error::ConfigError("Couldn't parse nep141_eth_token_factory".to_string()))
     }
 }
 
@@ -326,5 +419,24 @@ mod tests {
             CryptoHash::from_str("Da9cK9B4ngYxs5nrM81oWAQAgf2wMXQ2ooF5UKCoUo7T").unwrap()
         ).await.unwrap();
         println!("Mint transaction sent. Transaction hash: {:?}", tx_hash);
+    }
+
+    #[tokio::test]
+    async fn test_burn() {
+        let tx_hash = bridging().burn(
+            "token-bridge-test.testnet".to_string(),
+            100.into(),
+            "dev-giraffe.testnet".to_string()
+        ).await.unwrap();
+        println!("Mint transaction sent. Transaction hash: {:?}", tx_hash);
+    }
+
+    #[tokio::test]
+    async fn test_withdraw() {
+        let tx_hash = bridging().withdraw(
+            TxHash::from_str("0x3b5d1b020f6ff5870cf6c79bdcc7dae2f28f2a0bad4856af175d7569590d9c85").unwrap(),
+            45
+        ).await.unwrap();
+        println!("Withdraw transaction sent. Transaction hash: {:?}", tx_hash);
     }
 }

@@ -9,7 +9,7 @@ use near_primitives::types::{AccountId, BlockReference, Finality, FunctionArgs};
 use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use tokio::time;
-use crate::result::{Error, NearRpcError, Result};
+use crate::common::{Error, NearRpcError, Result};
 
 pub const DEFAULT_WAIT_FINAL_OUTCOME_TIMEOUT_SEC: u64 = 500;
 

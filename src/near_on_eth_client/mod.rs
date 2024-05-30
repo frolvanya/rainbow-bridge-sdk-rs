@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use ethereum_types::Address;
 use ethers::{contract::abigen, providers::{Http, Provider}};
-use crate::{common::Env, result::{Error, Result}};
+use crate::common::{Env, Error, Result};
 
 abigen!(
     NearLightClient,
