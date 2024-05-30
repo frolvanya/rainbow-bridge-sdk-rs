@@ -11,7 +11,7 @@ mod light_client_proof;
 abigen!(
     BridgeTokenFactory,
     r#"[
-      function newBridgeToken(string calldata nearTokenId, bytes memory proofData, uint64 proofBlockHeight) external returns (address)
+      function newBridgeToken(bytes memory proofData, uint64 proofBlockHeight) external returns (address)
       function deposit(bytes memory proofData, uint64 proofBlockHeight) external
       function withdraw(string memory token, uint256 amount, string memory recipient) external
       function nearToEthToken(string calldata nearTokenId) external view returns (address)
@@ -118,7 +118,6 @@ impl Nep141Bridging {
 
     pub async fn deploy_token(
         &self,
-        near_token_id: String,
         receipt_id: CryptoHash,
     ) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
@@ -146,7 +145,7 @@ impl Nep141Bridging {
             .map_err(|_| Error::InvalidProof)?;
     
         let factory = self.bridge_token_factory()?;
-        let call = factory.new_bridge_token(near_token_id, buffer.into(), proof_block_height);
+        let call = factory.new_bridge_token(buffer.into(), proof_block_height);
 
         let tx = call.send().await?;
         Ok(tx.tx_hash())
@@ -388,7 +387,6 @@ mod tests {
     #[tokio::test]
     async fn test_deploy_token() {
         let tx_hash = bridging().deploy_token(
-            "token-bridge-test.testnet".to_string(),
             CryptoHash::from_str("kR6yY8A1bezk9UDYJPFgZipxY8emd2bcmY1SiUgtDEz").unwrap()
         ).await.unwrap();
         println!("Tx: {:?}", tx_hash);
