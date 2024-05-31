@@ -40,6 +40,15 @@ enum Network {
     Testnet,
 }
 
+impl From<Network> for Env {
+    fn from(network: Network) -> Env {
+        match network {
+            Network::Mainnet => Env::Mainnet,
+            Network::Testnet => Env::Testnet,
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[clap(version)]
 struct Arguments {
@@ -61,10 +70,10 @@ fn env_config() -> CliConfig {
 // TODO: Add file config
 // fn file_config() -> CliConfig
 
-fn nep141_bridging(config: CliConfig) -> Nep141Bridging {
+fn nep141_bridging(network: Network, config: CliConfig) -> Nep141Bridging {
     // TODO: replace unwrap
     let env_config = env_config();
-    Nep141Bridging::new(Env::Testnet)
+    Nep141Bridging::new(network.into())
         .with_eth_endpoint(config.eth_rpc.or(env_config.eth_rpc).unwrap())
         .with_near_endpoint(config.near_rpc.or(env_config.near_rpc).unwrap())
         .with_near_signer(
@@ -89,7 +98,7 @@ async fn main() {
 
     match args.cmd {
         SubCommand::Nep141LogMetadata { token, config_cli } => {
-            let tx_hash = nep141_bridging(config_cli)
+            let tx_hash = nep141_bridging(args.network, config_cli)
                 .log_token_metadata(token)
                 .await
                 .unwrap();
@@ -100,7 +109,7 @@ async fn main() {
             config_cli,
         } => {
             // TODO: use tx hash instead receipt_id
-            let tx_hash = nep141_bridging(config_cli)
+            let tx_hash = nep141_bridging(args.network, config_cli)
                 .deploy_token(receipt_id.parse().expect("Invalid receipt_id"))
                 .await
                 .unwrap();
@@ -111,7 +120,7 @@ async fn main() {
             config_cli,
         } => {
             // TODO: use tx hash instead receipt_id
-            let tx_hash = nep141_bridging(config_cli)
+            let tx_hash = nep141_bridging(args.network, config_cli)
                 .mint(receipt_id.parse().expect("Invalid rreceipt_id"))
                 .await
                 .unwrap();
