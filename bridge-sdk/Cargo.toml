@@ -1,0 +1,27 @@
+[package]
+name = "bridge-sdk"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+borsh = "1.5.0"
+cita_trie = "5.0.1"
+config = "0.14.0"
+ethereum-types = "0.14.1"
+ethers = "2.0.14"
+ethers-core = "2.0.14"
+hasher = "0.1.4"
+hex = "0.4.3"
+lazy_static = "1.4.0"
+near-crypto = "0.21.0"
+near-jsonrpc-client = "0.9.0"
+near-jsonrpc-primitives = "0.21.0"
+near-primitives = "0.21.0"
+reqwest = { version = "0.11", features = ["json"] }
+rlp = "0.5.2"
+serde_json = "1.0.117"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0.61"
+tokio = { version = "1", features = ["full"] }
