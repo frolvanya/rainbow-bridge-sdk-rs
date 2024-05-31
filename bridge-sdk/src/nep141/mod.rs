@@ -43,7 +43,7 @@ impl Nep141Bridging {
         match env {
             Env::Testnet => Self {
                 eth_chain_id: 11155111,
-                bridge_token_factory_address: "0xF670c4adC359C1aD830bBffAefB1aEf9bCbBADC6".to_string(),
+                bridge_token_factory_address: "0xa9108f7F83Fb661e611991116D526fCa1a9585ab".to_string(),
                 eth_endpoint: None,
                 eth_private_key: None,
                 near_endpoint: None,
