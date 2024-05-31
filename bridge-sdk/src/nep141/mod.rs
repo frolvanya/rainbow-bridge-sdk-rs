@@ -43,7 +43,7 @@ impl Nep141Bridging {
         match env {
             Env::Testnet => Self {
                 eth_chain_id: 11155111,
-                bridge_token_factory_address: "0xF670c4adC359C1aD830bBffAefB1aEf9bCbBADC6".to_string(),
+                bridge_token_factory_address: "0xa9108f7F83Fb661e611991116D526fCa1a9585ab".to_string(),
                 eth_endpoint: None,
                 eth_private_key: None,
                 near_endpoint: None,
@@ -52,7 +52,17 @@ impl Nep141Bridging {
                 token_locker_id: "ft-locker.sepolia.testnet".to_string(),
                 environment: env,
             },
-            Env::Mainnet => panic!("Mainnet is not supported yet")
+            Env::Mainnet => Self {
+                eth_chain_id: 1,
+                bridge_token_factory_address: "0x252e87862A3A720287E7fd527cE6e8d0738427A2".to_string(),
+                eth_endpoint: None,
+                eth_private_key: None,
+                near_endpoint: None,
+                near_private_key: None,
+                near_signer: None,
+                token_locker_id: "ft-locker.bridge.near".to_string(),
+                environment: env,
+            }
         }
     }
 

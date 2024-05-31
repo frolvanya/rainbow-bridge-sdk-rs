@@ -23,7 +23,10 @@ impl NearOnEthClient {
                 eth_endpoint: eth_rpc_endpoint,
                 near_on_eth_client_address: "0x202cdf10bfa45a3d2190901373edd864f071d707".parse().unwrap()
             },
-            Env::Mainnet => panic!("Mainnet is not supported yet")
+            Env::Mainnet => Self {
+                eth_endpoint: eth_rpc_endpoint,
+                near_on_eth_client_address: "0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873".parse().unwrap()
+            }
         }
     }
 
