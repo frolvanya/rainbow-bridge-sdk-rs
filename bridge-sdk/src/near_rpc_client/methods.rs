@@ -9,7 +9,7 @@ use near_primitives::types::{AccountId, BlockReference, Finality, FunctionArgs};
 use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use tokio::time;
-use crate::common::{Error, NearRpcError, Result};
+use crate::common::{SdkError, Result};
 
 pub const DEFAULT_WAIT_FINAL_OUTCOME_TIMEOUT_SEC: u64 = 500;
 
@@ -61,8 +61,7 @@ pub async fn get_light_client_proof(
             light_client_head,
         };
 
-    Ok(client.call(request).await
-        .map_err(|e| Error::NearRpcError(NearRpcError::ProofError(e)))?)
+    Ok(client.call(request).await?)
 }
 
 pub async fn get_final_block_timestamp(
@@ -118,11 +117,11 @@ pub async fn change(
     };
     let access_key_query_response = client
         .call(rpc_request)
-        .await
-        .map_err(|e| Error::NearRpcError(NearRpcError::QueryError(e)))?;
+        .await?;
+
     let current_nonce = match access_key_query_response.kind {
         QueryResponseKind::AccessKey(access_key) => access_key.nonce,
-        _ => Err(Error::NearRpcError(NearRpcError::FailedToExtractNonce))?,
+        _ => Err(SdkError::NearRpcError("Failed to extract nonce".to_owned().into()))?,
     };
     let transaction = Transaction {
         signer_id: signer.account_id.clone(),
@@ -141,10 +140,7 @@ pub async fn change(
         signed_transaction: transaction.sign(&signer),
     };
 
-    Ok(client
-        .call(request)
-        .await
-        .map_err(|e| Error::NearRpcError(NearRpcError::BroadcastTxError(e)))?)
+    Ok(client.call(request).await?)
 }
 
 pub async fn change_and_wait_for_outcome(
@@ -196,7 +192,7 @@ pub async fn wait_for_tx_final_outcome(
 
         let delta = (time::Instant::now() - sent_at).as_secs();
         if delta > timeout_sec {
-            Err(Error::NearRpcError(NearRpcError::FinalizationTimeoutError))?;
+            Err(SdkError::NearTxFinalizationError)?;
         }
 
         match response {
@@ -205,7 +201,7 @@ pub async fn wait_for_tx_final_outcome(
                     time::sleep(time::Duration::from_secs(2)).await;
                     continue;
                 }
-                _ => Err(Error::NearRpcError(NearRpcError::RpcTransactionError(err)))?,
+                _ => Err(SdkError::NearRpcError(Box::new(err)))?,
             },
             Ok(response) => match response.final_execution_outcome {
                 None => {

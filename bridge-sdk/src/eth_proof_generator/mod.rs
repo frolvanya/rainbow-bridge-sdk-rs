@@ -8,11 +8,11 @@ use hasher::HasherKeccak;
 use rlp::RlpStream;
 use std::sync::Arc;
 use ethereum_types::H256;
-use crate::common::{Result, Error};
+use crate::common::{Result, SdkError};
 
-impl From<TrieError> for Error {
+impl From<TrieError> for SdkError {
     fn from(error: TrieError) -> Self {
-        Error::EthProofError(error.to_string())
+        SdkError::EthProofError(error.to_string())
     }
 }
 
@@ -51,7 +51,7 @@ pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) 
 
     Ok(Proof {
         log_index: log_index_in_receipt as u64,
-        log_entry_data: log_data.ok_or(Error::EthProofError("Log not found".to_string()))?,
+        log_entry_data: log_data.ok_or(SdkError::EthProofError("Log not found".to_string()))?,
         receipt_index: receipt.transaction_index.as_u64(),
         receipt_data: encode_receipt(&receipt),
         header_data: encode_header(&block_header),

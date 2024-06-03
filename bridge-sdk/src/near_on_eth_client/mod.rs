@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use ethereum_types::Address;
 use ethers::{contract::abigen, providers::{Http, Provider}};
-use crate::common::{Env, Error, Result};
+use crate::common::{Env, SdkError, Result};
 
 abigen!(
     NearLightClient,
@@ -52,7 +52,7 @@ impl NearOnEthClient {
 
     fn eth_provider(&self) -> Result<Provider<Http>> {
         Ok(Provider::<Http>::try_from(self.eth_endpoint.clone())
-            .map_err(|_| Error::ConfigError("Ethereum endpoint url is invalid".to_string()))?)
+            .map_err(|_| SdkError::ConfigError("Ethereum endpoint url is invalid".to_string()))?)
     }
 }
 

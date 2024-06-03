@@ -1,46 +1,42 @@
 use std::result;
 use ethers::{contract::ContractError, providers::Middleware};
-use near_jsonrpc_client::{errors::JsonRpcError, methods::{broadcast_tx_async::RpcBroadcastTxAsyncError, query::RpcQueryError, tx::RpcTransactionError}};
-use near_jsonrpc_primitives::types::light_client::RpcLightClientProofError;
+use near_jsonrpc_client::errors::JsonRpcError;
 
-pub type Result<T> = result::Result<T, Error>;
+pub type Result<T> = result::Result<T, SdkError>;
 
-#[derive(Debug)]
-pub enum NearRpcError {
-    BroadcastTxError(JsonRpcError<RpcBroadcastTxAsyncError>),
-    QueryError(JsonRpcError<RpcQueryError>),
-    FailedToExtractNonce,
-    FinalizationTimeoutError,
-    RpcTransactionError(JsonRpcError<RpcTransactionError>),
-    ProofError(JsonRpcError<RpcLightClientProofError>),
-    Other,
-}
-
-#[derive(Debug)]
-pub enum Error {
+#[derive(thiserror::Error, Debug)]
+pub enum SdkError {
+    #[error("Configuration error: {0}")]
     ConfigError(String),
+    #[error("Error communicating with Ethereum: {0}")]
     EthRpcError(String),
-    NearRpcError(NearRpcError),
-    InvalidProof,
+    #[error("Error communicating with Near")]
+    NearRpcError(#[source] Box<dyn std::error::Error>),
+    #[error("Near transaction has been sent but its result couldn't be obtained")]
+    NearTxFinalizationError,
+    #[error("Error retrieving Near proof: {0}")]
+    NearProofError(String),
+    #[error("Error retrieving Ethereum proof: {0}")]
     EthProofError(String),
+    #[error("Unexpected error occured")]
     UnknownError
 }
 
-impl From<config::ConfigError> for Error {
+impl From<config::ConfigError> for SdkError {
     fn from(error: config::ConfigError) -> Self {
-        Error::ConfigError(error.to_string())
+        SdkError::ConfigError(error.to_string())
     }
 }
 
-impl<M: Middleware> From<ContractError<M>> for Error {
+impl<M: Middleware> From<ContractError<M>> for SdkError {
     fn from(error: ContractError<M>) -> Self {
-        Error::EthRpcError(error.to_string())
+        SdkError::EthRpcError(error.to_string())
     }
 }
 
-impl<E> From<JsonRpcError<E>> for Error {
-    fn from(_: JsonRpcError<E>) -> Self {
-        Error::NearRpcError(NearRpcError::Other)
+impl<E: std::fmt::Debug + std::fmt::Display + 'static> From<JsonRpcError<E>> for SdkError {
+    fn from(error: JsonRpcError<E>) -> Self {
+        SdkError::NearRpcError(Box::new(error))
     }
 }
 

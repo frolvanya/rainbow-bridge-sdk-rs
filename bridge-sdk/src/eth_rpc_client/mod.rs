@@ -3,14 +3,14 @@ use reqwest::Client;
 use ::serde::Deserialize;
 use serde_json::{json, Value};
 use ethereum_types::{H256, U64};
-use crate::common::{Result, Error};
+use crate::common::{Result, SdkError};
 
 pub mod types;
 mod serde;
 
-impl From<reqwest::Error> for Error {
+impl From<reqwest::Error> for SdkError {
     fn from(error: reqwest::Error) -> Self {
-        Error::EthRpcError(error.to_string())
+        SdkError::EthRpcError(error.to_string())
     }
 }
 
@@ -45,9 +45,9 @@ impl EthRPCClient {
             .text().await?;
         println!("res: {:?}", &res);
         let val: Value = serde_json::from_str(&res)
-            .map_err(|_| Error::EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
+            .map_err(|_| SdkError::EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
         let receipt = TransactionReceipt::deserialize(&val["result"])
-            .map_err(|_| Error::EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
+            .map_err(|_| SdkError::EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
 
         Ok(receipt)
     }
@@ -68,9 +68,9 @@ impl EthRPCClient {
             .text().await?;
 
         let val: Value = serde_json::from_str(&res)
-            .map_err(|_| Error::EthRpcError("Couldn't deserialize block number".to_string()))?;
+            .map_err(|_| SdkError::EthRpcError("Couldn't deserialize block number".to_string()))?;
         let header = BlockHeader::deserialize(&val["result"])
-            .map_err(|_| Error::EthRpcError("Couldn't deserialize block number".to_string()))?;
+            .map_err(|_| SdkError::EthRpcError("Couldn't deserialize block number".to_string()))?;
 
         Ok(header)
     }
@@ -94,9 +94,9 @@ impl EthRPCClient {
             .text().await?;
 
         let val: Value = serde_json::from_str(&res)
-            .map_err(|_| Error::EthRpcError("Couldn't deserialize block receipts".to_string()))?;
+            .map_err(|_| SdkError::EthRpcError("Couldn't deserialize block receipts".to_string()))?;
         let receipts = Vec::<TransactionReceipt>::deserialize(&val["result"])
-            .map_err(|_| Error::EthRpcError("Couldn't deserialize block receipts".to_string()))?;
+            .map_err(|_| SdkError::EthRpcError("Couldn't deserialize block receipts".to_string()))?;
 
         Ok(receipts)
     }
