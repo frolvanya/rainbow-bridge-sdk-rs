@@ -26,6 +26,7 @@ abigen!(
     ]"#
 );
 
+/// Bridging NEAR-originated NEP-141 tokens to Ethereum and back
 pub struct Nep141Bridging {
     eth_endpoint: Option<String>,
     eth_chain_id: u64,
@@ -39,6 +40,7 @@ pub struct Nep141Bridging {
 }
 
 impl Nep141Bridging {
+    /// Creates a new instance of the bridging client. Constant values are set here, while the others can be provided separately depending on the use case.
     pub fn new(env: Env) -> Self {
         match env {
             Env::Testnet => Self {
@@ -66,31 +68,42 @@ impl Nep141Bridging {
         }
     }
 
+    /// Set Ethereum RPC endpoint
+    /// 
+    /// Required for `deploy_token`, `mint`, `burn`, `withdraw`
     pub fn with_eth_endpoint(mut self, endpoint: String) -> Self {
         self.eth_endpoint = Some(endpoint);
         self
     }
 
+    /// Set Ethereum wallet private key
+    /// 
+    /// Required for `deploy_token`, `mint`, `burn`
     pub fn with_eth_private_key(mut self, private_key: String) -> Self {
         self.eth_private_key = Some(private_key);
         self
     }
 
+    /// Set Near RPC endpoint
+    /// 
+    /// Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `mint`, `withdraw`
     pub fn with_near_endpoint(mut self, endpoint: String) -> Self {
         self.near_endpoint = Some(endpoint);
         self
     }
 
+    /// Set near transaction signer
+    /// 
+    /// Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `withdraw`
     pub fn with_near_signer(mut self, signer: String, private_key: String) -> Self {
         self.near_private_key = Some(private_key);
         self.near_signer = Some(signer);
         self
     }
 
+    /// Logs token metadata to token_locker contract. The proof from this transaction is then used to deploy a corresponding token on Ethereum
     pub async fn log_token_metadata(&self, near_token_id: String) -> Result<CryptoHash> {
-        let near_endpoint = self.near_endpoint
-            .as_ref()
-            .ok_or(SdkError::ConfigError("Near endpoint not set".to_string()))?;
+        let near_endpoint = self.near_endpoint()?;
 
         let args = format!(r#"{{"token_id":"{near_token_id}"}}"#)
             .to_string()
@@ -107,6 +120,7 @@ impl Nep141Bridging {
         ).await?)
     }
 
+    /// Performs a storage deposit on behalf of the token_locker so that the tokens can be transferred to the locker. To be called once for each NEP-141
     pub async fn storage_deposit_for_token(&self, near_token_id: String, amount: u128) -> Result<CryptoHash> {
         let near_endpoint = self.near_endpoint()?;
         let token_locker = self.token_locker_id.clone();
@@ -126,6 +140,7 @@ impl Nep141Bridging {
         ).await?)
     }
 
+    /// Deploys an ERC-20 token that will be used when bridging NEP-141 tokens to Ethereum. Requires a receipt from log_metadata transaction on Near
     pub async fn deploy_token(
         &self,
         receipt_id: CryptoHash,
@@ -161,6 +176,7 @@ impl Nep141Bridging {
         Ok(tx.tx_hash())
     }
 
+    /// Transfers NEP-141 tokens to the token locker. The proof from this transaction is then used to mint the corresponding tokens on Ethereum
     pub async fn deposit(&self, near_token_id: String, amount: u128, eth_receiver: String) -> Result<CryptoHash> {
         let near_endpoint = self.near_endpoint()?;
         let token_locker = self.token_locker_id.clone();
@@ -182,6 +198,7 @@ impl Nep141Bridging {
         Ok(tx_hash)
     }
 
+    /// Mints the corresponding bridged tokens on Ethereum. Requires a proof from the deposit transaction on Near
     pub async fn mint(&self, receipt_id: CryptoHash) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
@@ -214,6 +231,7 @@ impl Nep141Bridging {
         Ok(tx.tx_hash())
     }
 
+    /// Burns bridged tokens on Ethereum. The proof from this transaction is then used to withdraw the corresponding tokens on Near
     pub async fn burn(
         &self,
         near_token_id: String,
@@ -250,6 +268,7 @@ impl Nep141Bridging {
         Ok(tx.tx_hash())
     }
 
+    /// Withdraws NEP-141 tokens from the token locker. Requires a proof from the burn transaction on Ethereum
     pub async fn withdraw(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
