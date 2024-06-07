@@ -1,5 +1,5 @@
 use std::env;
-use bridge_sdk::{common::Env, nep141::Nep141Bridging};
+use bridge_sdk::{common::Env, nep141::{Nep141Bridging, Nep141BridgingBuilder}};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod defaults;
@@ -138,34 +138,18 @@ fn nep141_bridging(network: Network, cli_config: CliConfig) -> Nep141Bridging {
         .or(env_config())
         .or(default_config(network));
 
-    let mut bridging = Nep141Bridging::new()
-        .with_eth_endpoint(
-            combined_config.eth_rpc.unwrap(),
-            combined_config.eth_chain_id.unwrap()
-        )
-        .with_near_endpoint(combined_config.near_rpc.unwrap())
-        .with_token_locker_id(combined_config.token_locker_id.unwrap())
-        .with_bridge_token_factory_address(combined_config.bridge_token_factory_address.unwrap())
-        .with_near_light_client_address(combined_config.near_light_client_eth_address.unwrap());
-
-    match (combined_config.near_signer, combined_config.near_private_key) {
-        (Some(near_signer), Some(near_private_key)) => {
-            bridging = bridging.with_near_signer(near_signer, near_private_key);
-        },
-        (Some(_), None) => {
-            panic!("Near signer is provided but Near private key is missing");
-        },
-        (None, Some(_)) => {
-            panic!("Near private key is provided but Near signer is missing");
-        },
-        (None, None) => {},
-    }
-    
-    if let Some(eth_private_key) = combined_config.eth_private_key {
-        bridging = bridging.with_eth_private_key(eth_private_key);
-    }
-
-    bridging
+    Nep141BridgingBuilder::default()
+        .eth_endpoint(combined_config.eth_rpc)
+        .eth_chain_id(combined_config.eth_chain_id)
+        .near_endpoint(combined_config.near_rpc)
+        .token_locker_id(combined_config.token_locker_id)
+        .bridge_token_factory_address(combined_config.bridge_token_factory_address)
+        .near_light_client_address(combined_config.near_light_client_eth_address)
+        .eth_private_key(combined_config.eth_private_key)
+        .near_signer(combined_config.near_signer)
+        .near_private_key(combined_config.near_private_key)
+        .build()
+        .unwrap()
 }
 
 #[tokio::main]

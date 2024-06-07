@@ -27,15 +27,25 @@ abigen!(
 );
 
 /// Bridging NEAR-originated NEP-141 tokens to Ethereum and back
+#[derive(Builder)]
 pub struct Nep141Bridging {
+    #[doc = r"Ethereum RPC endpoint. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
     eth_endpoint: Option<String>,
+    #[doc = r"Ethereum chain id. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
     eth_chain_id: Option<u64>,
+    #[doc = r"Ethereum private key. Required for `deploy_token`, `mint`, `burn`"]
     eth_private_key: Option<String>,
+    #[doc = r"Bridged token factory address on Ethereum. Required for `deploy_token`, `mint`, `burn`"]
     bridge_token_factory_address: Option<String>,
+    #[doc = r"NEAR RPC endpoint. Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `mint`, `withdraw`"]
     near_endpoint: Option<String>,
+    #[doc = r"NEAR private key. Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `withdraw`"]
     near_private_key: Option<String>,
+    #[doc = r"NEAR account id of the transaction signer. Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `withdraw`"]
     near_signer: Option<String>,
+    #[doc = r"Token locker account id on Near. Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `mint`, `withdraw`"]
     token_locker_id: Option<String>,
+    #[doc = r"NEAR light client address on Ethereum. Required for `deploy_token`, `mint`"]
     near_light_client_address: Option<String>,
 }
 
@@ -53,64 +63,6 @@ impl Nep141Bridging {
             token_locker_id: None,
             near_light_client_address: None,
         }
-    }
-
-    /// Set bridge token factory address on Ethereum
-    /// 
-    /// Required for `deploy_token`, `mint`, `burn`
-    pub fn with_bridge_token_factory_address(mut self, address: String) -> Self {
-        self.bridge_token_factory_address = Some(address);
-        self
-    }
-
-    /// Set token locked account id on Near
-    /// 
-    /// Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `mint`, `withdraw`
-    pub fn with_token_locker_id(mut self, token_locker_id: String) -> Self {
-        self.token_locker_id = Some(token_locker_id);
-        self
-    }
-
-    /// Set Near light client address on Ethereum
-    /// 
-    /// Required for `deploy_token`, `mint`
-    pub fn with_near_light_client_address(mut self, light_client_address: String) -> Self {
-        self.near_light_client_address = Some(light_client_address);
-        self
-    }
-
-    /// Set Ethereum RPC endpoint
-    /// 
-    /// Required for `deploy_token`, `mint`, `burn`, `withdraw`
-    pub fn with_eth_endpoint(mut self, endpoint: String, chain_id: u64) -> Self {
-        self.eth_endpoint = Some(endpoint);
-        self.eth_chain_id = Some(chain_id);
-        self
-    }
-
-    /// Set Ethereum wallet private key
-    /// 
-    /// Required for `deploy_token`, `mint`, `burn`
-    pub fn with_eth_private_key(mut self, private_key: String) -> Self {
-        self.eth_private_key = Some(private_key);
-        self
-    }
-
-    /// Set Near RPC endpoint
-    /// 
-    /// Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `mint`, `withdraw`
-    pub fn with_near_endpoint(mut self, endpoint: String) -> Self {
-        self.near_endpoint = Some(endpoint);
-        self
-    }
-
-    /// Set near transaction signer
-    /// 
-    /// Required for `log_token_metadata`, `storage_deposit_for_token`, `deploy_token`, `deposit`, `withdraw`
-    pub fn with_near_signer(mut self, signer: String, private_key: String) -> Self {
-        self.near_private_key = Some(private_key);
-        self.near_signer = Some(signer);
-        self
     }
 
     /// Logs token metadata to token_locker contract. The proof from this transaction is then used to deploy a corresponding token on Ethereum

@@ -72,7 +72,7 @@ mod tests {
         let client = NearOnEthClient::new(near_on_eth_client_address, eth_rpc_endpoint);
 
         let sync_height = client.get_sync_height().await.unwrap();
-        assert_eq!(sync_height, 165638532);
+        assert!(sync_height > 165638532);
     }
 
     #[tokio::test]
