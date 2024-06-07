@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use ethereum_types::Address;
 use ethers::{contract::abigen, providers::{Http, Provider}};
-use crate::common::{Env, SdkError, Result};
+use crate::common::{SdkError, Result};
 
 abigen!(
     NearLightClient,
@@ -17,16 +17,10 @@ pub struct NearOnEthClient {
 }
 
 impl NearOnEthClient {
-    pub fn new(env: Env, eth_rpc_endpoint: String) -> Self {
-        match env {
-            Env::Testnet => Self {
-                eth_endpoint: eth_rpc_endpoint,
-                near_on_eth_client_address: "0x202cdf10bfa45a3d2190901373edd864f071d707".parse().unwrap()
-            },
-            Env::Mainnet => Self {
-                eth_endpoint: eth_rpc_endpoint,
-                near_on_eth_client_address: "0x3FEFc5A4B1c02f21cBc8D3613643ba0635b9a873".parse().unwrap()
-            }
+    pub fn new(near_one_eth_client_address: Address, eth_rpc_endpoint: String) -> Self {
+        Self {
+            eth_endpoint: eth_rpc_endpoint,
+            near_on_eth_client_address: near_one_eth_client_address
         }
     }
 
@@ -70,19 +64,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_sync_height() {
-        let eth_rpc_endpoint = get_config().get_string("eth_rpc_endpoint").unwrap();
-        let client = NearOnEthClient::new(Env::Testnet, eth_rpc_endpoint);
+        let eth_rpc_endpoint = get_config().get_string("eth_rpc_url").unwrap();
+        let near_on_eth_client_address = get_config().get_string("near_on_eth_client_address")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let client = NearOnEthClient::new(near_on_eth_client_address, eth_rpc_endpoint);
 
         let sync_height = client.get_sync_height().await.unwrap();
-        println!("Current sync height: {:?}", sync_height);
+        assert_eq!(sync_height, 165638532);
     }
 
     #[tokio::test]
     async fn test_block_hashes() {
-        let eth_rpc_endpoint = get_config().get_string("eth_rpc_endpoint").unwrap();
-        let client = NearOnEthClient::new(Env::Testnet, eth_rpc_endpoint);
+        let eth_rpc_endpoint = get_config().get_string("eth_rpc_url").unwrap();
+        let near_on_eth_client_address = get_config().get_string("near_on_eth_client_address")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let client = NearOnEthClient::new(near_on_eth_client_address, eth_rpc_endpoint);
 
         let block_hash = client.get_block_hash(164243835).await.unwrap();
-        println!("Block hash: {:?}", block_hash);
+        assert_eq!(block_hash, [2, 14, 107, 125, 167, 203, 210, 235, 202, 31, 82, 98, 26, 4, 231, 202, 13, 30, 158, 149, 12, 235, 67, 66, 19, 33, 247, 240, 20, 162, 161, 67]);
     }
 }

@@ -2,7 +2,5 @@
     "eth_rpc_url": "https://ethereum-sepolia-rpc.publicnode.com",
     "eth_chain_id": 11155111,
     "near_rpc_url": "https://rpc.testnet.near.org",
-    "eth_private_key": "",
-    "near_signer_account_id": "",
-    "near_private_key": ""
+    "near_on_eth_client_address": "0x202cdf10bfa45a3d2190901373edd864f071d707"
 }

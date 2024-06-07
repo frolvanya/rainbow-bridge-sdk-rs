@@ -199,7 +199,7 @@ pub mod tests {
 
     fn read_proof_data(file_name: &str) -> (u64, u64, String, String, String, Vec<String>) {
         let mut data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        data_dir.push("src/test_data");
+        data_dir.push("src/eth_proof_generator/test_data");
         data_dir.push(file_name);
 
         let data = fs::read_to_string(data_dir).unwrap();

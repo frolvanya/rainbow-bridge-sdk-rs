@@ -35,15 +35,13 @@ impl EthRPCClient {
             "params": [format!("{tx_hash:#x}")]
         });
 
-        println!("{tx_hash:#x}");
-
         let res = self
             .client
             .post(&self.endpoint_url)
             .json(&json_value)
             .send().await?
             .text().await?;
-        println!("res: {:?}", &res);
+
         let val: Value = serde_json::from_str(&res)
             .map_err(|_| SdkError::EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
         let receipt = TransactionReceipt::deserialize(&val["result"])
