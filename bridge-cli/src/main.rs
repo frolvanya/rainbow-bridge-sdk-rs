@@ -26,6 +26,22 @@ struct CliConfig {
     near_light_client_eth_address: Option<String>,
 }
 
+impl CliConfig {
+    fn or(self, other: Self) -> Self {
+        Self {
+            eth_rpc: self.eth_rpc.or(other.eth_rpc),
+            eth_chain_id: self.eth_chain_id.or(other.eth_chain_id),
+            near_rpc: self.near_rpc.or(other.near_rpc),
+            near_signer: self.near_signer.or(other.near_signer),
+            near_private_key: self.near_private_key.or(other.near_private_key),
+            eth_private_key: self.eth_private_key.or(other.eth_private_key),
+            token_locker_id: self.token_locker_id.or(other.token_locker_id),
+            bridge_token_factory_address: self.bridge_token_factory_address.or(other.bridge_token_factory_address),
+            near_light_client_eth_address: self.near_light_client_eth_address.or(other.near_light_client_eth_address),
+        }
+    }
+}
+
 #[derive(Subcommand, Debug)]
 enum SubCommand {
     Nep141LogMetadata {
@@ -116,37 +132,23 @@ fn default_config(network: Network) -> CliConfig {
 // TODO: Add file config
 // fn file_config() -> CliConfig
 
-fn nep141_bridging(network: Network, config: CliConfig) -> Nep141Bridging {
+fn nep141_bridging(network: Network, cli_config: CliConfig) -> Nep141Bridging {
     // TODO: replace unwrap
-    let env_config = env_config();
-    let default_config = default_config(network);
+    let combined_config = cli_config
+        .or(env_config())
+        .or(default_config(network));
 
     let mut bridging = Nep141Bridging::new()
         .with_eth_endpoint(
-            config.eth_rpc.or(env_config.eth_rpc).or(default_config.eth_rpc).unwrap(),
-            config.eth_chain_id.or(env_config.eth_chain_id).or(default_config.eth_chain_id).unwrap()
+            combined_config.eth_rpc.unwrap(),
+            combined_config.eth_chain_id.unwrap()
         )
-        .with_near_endpoint(config.near_rpc.or(env_config.near_rpc).or(default_config.near_rpc).unwrap())
-        .with_token_locker_id(
-            config.token_locker_id.or(env_config.token_locker_id).or(default_config.token_locker_id).unwrap()
-        )
-        .with_bridge_token_factory_address(
-            config.bridge_token_factory_address
-                .or(env_config.bridge_token_factory_address)
-                .or(default_config.bridge_token_factory_address)
-                .unwrap()
-        )
-        .with_near_light_client_address(
-            config.near_light_client_eth_address
-                .or(env_config.near_light_client_eth_address)
-                .or(default_config.near_light_client_eth_address)
-                .unwrap()
-        );
+        .with_near_endpoint(combined_config.near_rpc.unwrap())
+        .with_token_locker_id(combined_config.token_locker_id.unwrap())
+        .with_bridge_token_factory_address(combined_config.bridge_token_factory_address.unwrap())
+        .with_near_light_client_address(combined_config.near_light_client_eth_address.unwrap());
 
-    let near_signer = config.near_signer.or(env_config.near_signer);
-    let near_private_key = config.near_private_key.or(env_config.near_private_key);
-
-    match (near_signer, near_private_key) {
+    match (combined_config.near_signer, combined_config.near_private_key) {
         (Some(near_signer), Some(near_private_key)) => {
             bridging = bridging.with_near_signer(near_signer, near_private_key);
         },
@@ -156,14 +158,13 @@ fn nep141_bridging(network: Network, config: CliConfig) -> Nep141Bridging {
         (None, Some(_)) => {
             panic!("Near private key is provided but Near signer is missing");
         },
-        (None, None) => {
-        },
+        (None, None) => {},
     }
     
-    if let Some(eth_private_key) = config.eth_private_key.or(env_config.eth_private_key) {
+    if let Some(eth_private_key) = combined_config.eth_private_key {
         bridging = bridging.with_eth_private_key(eth_private_key);
     }
-    
+
     bridging
 }
 
