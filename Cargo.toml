@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["bridge-cli", "bridge-sdk"]
+members = [
+    "bridge-cli",
+    "bridge-sdk",
+    "eth-proof",
+    "near-rpc-client"
+]
+

@@ -1,23 +1,14 @@
-use crate::eth_rpc_client::{
-    EthRPCClient,
-    types::{BlockHeader, Log, TransactionReceipt, U8}
-};
+use crate::{error::EthProofError, eth_rpc_client::{
+    types::{BlockHeader, Log, TransactionReceipt, U8}, EthRPCClient
+}};
 use borsh::BorshSerialize;
-use cita_trie::{MemoryDB, PatriciaTrie, Trie, TrieError};
+use cita_trie::{MemoryDB, PatriciaTrie, Trie};
 use hasher::HasherKeccak;
 use rlp::RlpStream;
 use std::sync::Arc;
 use ethereum_types::H256;
-use crate::common::{Result, SdkError};
 
-impl From<TrieError> for SdkError {
-    fn from(error: TrieError) -> Self {
-        SdkError::EthProofError(error.to_string())
-    }
-}
-
-#[derive(BorshSerialize)]
-#[derive(Debug)]
+#[derive(Debug, BorshSerialize)]
 pub struct Proof {
     pub log_index: u64,
     pub log_entry_data: Vec<u8>,
@@ -27,7 +18,7 @@ pub struct Proof {
     pub proof: Vec<Vec<u8>>,
 }
 
-pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) -> Result<Proof> {
+pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) -> Result<Proof, EthProofError> {
     let client = EthRPCClient::new(node_url);
 
     let receipt = client.get_transaction_receipt_by_hash(&tx_hash).await?;
@@ -51,7 +42,7 @@ pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) 
 
     Ok(Proof {
         log_index: log_index_in_receipt as u64,
-        log_entry_data: log_data.ok_or(SdkError::EthProofError("Log not found".to_string()))?,
+        log_entry_data: log_data.ok_or(EthProofError("Log not found".to_string()))?,
         receipt_index: receipt.transaction_index.as_u64(),
         receipt_data: encode_receipt(&receipt),
         header_data: encode_header(&block_header),
@@ -59,7 +50,7 @@ pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) 
     })
 }
 
-fn build_receipt_trie(receipts: &[TransactionReceipt],) -> Result<PatriciaTrie<MemoryDB, HasherKeccak>> {
+fn build_receipt_trie(receipts: &[TransactionReceipt],) -> Result<PatriciaTrie<MemoryDB, HasherKeccak>, EthProofError> {
     let memdb = Arc::new(MemoryDB::new(true));
     let hasher = Arc::new(HasherKeccak::new());
     let mut trie = PatriciaTrie::new(memdb, hasher);
@@ -199,7 +190,7 @@ pub mod tests {
 
     fn read_proof_data(file_name: &str) -> (u64, u64, String, String, String, Vec<String>) {
         let mut data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        data_dir.push("src/eth_proof_generator/test_data");
+        data_dir.push("src/test_data");
         data_dir.push(file_name);
 
         let data = fs::read_to_string(data_dir).unwrap();
