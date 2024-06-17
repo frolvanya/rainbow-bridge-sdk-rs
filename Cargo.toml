@@ -4,6 +4,6 @@ members = [
     "bridge-cli",
     "bridge-sdk",
     "eth-proof",
-    "near-rpc-client"
+    "near-rpc-client",
+    "near-light-client-on-eth"
 ]
-

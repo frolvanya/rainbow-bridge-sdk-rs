@@ -3,9 +3,10 @@ use borsh::BorshSerialize;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::{AccountId, TransactionOrReceiptId}};
-use crate::{common::{Result, SdkError}, near_on_eth_client::NearOnEthClient};
+use crate::common::{Result, SdkError};
 use light_client_proof::LightClientExecutionProof;
 use eth_proof;
+use near_light_client_on_eth::NearOnEthClient;
 
 mod light_client_proof;
 

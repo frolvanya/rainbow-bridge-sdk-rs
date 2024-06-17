@@ -1,6 +1,7 @@
 use std::result;
 use eth_proof::EthProofError;
 use ethers::{contract::ContractError, providers::Middleware};
+use near_light_client_on_eth::NearLightClientOnEthError;
 use near_rpc_client::NearRpcError;
 
 pub type Result<T> = result::Result<T, SdkError>;
@@ -38,6 +39,15 @@ impl From<EthProofError> for SdkError {
 impl<M: Middleware> From<ContractError<M>> for SdkError {
     fn from(error: ContractError<M>) -> Self {
         SdkError::EthRpcError(error.to_string())
+    }
+}
+
+impl From<NearLightClientOnEthError> for SdkError {
+    fn from(error: NearLightClientOnEthError) -> Self {
+        match error {
+            NearLightClientOnEthError::ConfigError(e) => SdkError::ConfigError(e),
+            NearLightClientOnEthError::EthRpcError(e) => SdkError::EthRpcError(e),
+        }
     }
 }
 

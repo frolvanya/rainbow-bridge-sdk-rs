@@ -1,0 +1,10 @@
+[package]
+name = "near-light-client-on-eth"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ethereum-types = "0.14.1"
+ethers = "2.0.14"
+tokio = { version = "1", features = ["full"] }
+thiserror = "1.0.61"

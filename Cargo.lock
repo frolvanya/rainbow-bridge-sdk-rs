@@ -538,6 +538,7 @@ dependencies = [
  "hex",
  "near-crypto",
  "near-jsonrpc-client",
+ "near-light-client-on-eth",
  "near-primitives",
  "near-rpc-client",
  "thiserror",
@@ -3223,6 +3224,16 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "near-light-client-on-eth"
+version = "0.1.0"
+dependencies = [
+ "ethereum-types",
+ "ethers",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

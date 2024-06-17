@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use ethereum_types::Address;
 use ethers::{contract::abigen, providers::{Http, Provider}};
-use crate::common::{SdkError, Result};
+
+use crate::error::NearLightClientOnEthError;
 
 abigen!(
     NearLightClient,
@@ -24,7 +25,7 @@ impl NearOnEthClient {
         }
     }
 
-    pub async fn get_sync_height(&self) -> Result<u64> {
+    pub async fn get_sync_height(&self) -> Result<u64, NearLightClientOnEthError> {
         let eth_provider = self.eth_provider()?;
         let client = Arc::new(eth_provider);
         let contract = NearLightClient::new(self.near_on_eth_client_address, client);
@@ -34,7 +35,7 @@ impl NearOnEthClient {
         Ok(state.0.as_u64())
     }
 
-    pub async fn get_block_hash(&self, block_number: u64) -> Result<[u8; 32]> {
+    pub async fn get_block_hash(&self, block_number: u64) -> Result<[u8; 32], NearLightClientOnEthError> {
         let eth_provider = self.eth_provider()?;
         let client = Arc::new(eth_provider);
         let contract = NearLightClient::new(self.near_on_eth_client_address, client);
@@ -44,31 +45,29 @@ impl NearOnEthClient {
         Ok(state)
     }
 
-    fn eth_provider(&self) -> Result<Provider<Http>> {
+    fn eth_provider(&self) -> Result<Provider<Http>, NearLightClientOnEthError> {
         Ok(Provider::<Http>::try_from(self.eth_endpoint.clone())
-            .map_err(|_| SdkError::ConfigError("Ethereum endpoint url is invalid".to_string()))?)
+            .map_err(|_| NearLightClientOnEthError::ConfigError("Ethereum endpoint url is invalid".to_string()))?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use config::{Config, File, FileFormat};
 
-    fn get_config() -> Config {
-        let config_path = env!("CARGO_MANIFEST_DIR").to_owned() + "/src/testnet.config.json";
-        Config::builder()
-            .add_source(File::new(&config_path, FileFormat::Json))
-            .build().unwrap()
+    fn get_config() -> (String, Address) {
+        let near_on_eth_address = "0x202cdf10bfa45a3d2190901373edd864f071d707"
+            .parse()
+            .unwrap();
+        let eth_rpc_endpoint = "https://ethereum-sepolia-rpc.publicnode.com"
+            .to_string();
+        
+        (eth_rpc_endpoint, near_on_eth_address)
     }
 
     #[tokio::test]
     async fn test_sync_height() {
-        let eth_rpc_endpoint = get_config().get_string("eth_rpc_url").unwrap();
-        let near_on_eth_client_address = get_config().get_string("near_on_eth_client_address")
-            .unwrap()
-            .parse()
-            .unwrap();
+        let (eth_rpc_endpoint, near_on_eth_client_address) = get_config();
         let client = NearOnEthClient::new(near_on_eth_client_address, eth_rpc_endpoint);
 
         let sync_height = client.get_sync_height().await.unwrap();
@@ -77,11 +76,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_block_hashes() {
-        let eth_rpc_endpoint = get_config().get_string("eth_rpc_url").unwrap();
-        let near_on_eth_client_address = get_config().get_string("near_on_eth_client_address")
-            .unwrap()
-            .parse()
-            .unwrap();
+        let (eth_rpc_endpoint, near_on_eth_client_address) = get_config();
         let client = NearOnEthClient::new(near_on_eth_client_address, eth_rpc_endpoint);
 
         let block_hash = client.get_block_hash(164243835).await.unwrap();
