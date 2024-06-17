@@ -3,12 +3,10 @@ use borsh::BorshSerialize;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::{AccountId, TransactionOrReceiptId}};
-use crate::common::{Result, SdkError};
-use light_client_proof::LightClientExecutionProof;
+use crate::result::{Result, SdkError};
+use crate::light_client_proof::LightClientExecutionProof;
 use eth_proof;
 use near_light_client_on_eth::NearOnEthClient;
-
-mod light_client_proof;
 
 abigen!(
     BridgeTokenFactory,
@@ -30,7 +28,7 @@ abigen!(
 
 /// Bridging NEAR-originated NEP-141 tokens to Ethereum and back
 #[derive(Builder)]
-pub struct Nep141Bridging {
+pub struct Nep141Connector {
     #[doc = r"Ethereum RPC endpoint. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
     eth_endpoint: Option<String>,
     #[doc = r"Ethereum chain id. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
@@ -51,7 +49,7 @@ pub struct Nep141Bridging {
     near_light_client_address: Option<String>,
 }
 
-impl Nep141Bridging {
+impl Nep141Connector {
     /// Creates an empty instance of the bridging client. Property values can be set separately depending on the required use case.
     pub fn new() -> Self {
         Self {

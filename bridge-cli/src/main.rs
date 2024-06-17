@@ -1,5 +1,5 @@
 use std::env;
-use bridge_sdk::{common::Env, nep141::{Nep141Bridging, Nep141BridgingBuilder}};
+use nep141_connector::{Nep141Connector, Nep141ConnectorBuilder};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
 mod defaults;
@@ -70,15 +70,6 @@ enum Network {
     Testnet,
 }
 
-impl From<Network> for Env {
-    fn from(network: Network) -> Env {
-        match network {
-            Network::Mainnet => Env::Mainnet,
-            Network::Testnet => Env::Testnet,
-        }
-    }
-}
-
 #[derive(Parser, Debug)]
 #[clap(version)]
 struct Arguments {
@@ -132,13 +123,13 @@ fn default_config(network: Network) -> CliConfig {
 // TODO: Add file config
 // fn file_config() -> CliConfig
 
-fn nep141_bridging(network: Network, cli_config: CliConfig) -> Nep141Bridging {
+fn nep141_bridging(network: Network, cli_config: CliConfig) -> Nep141Connector {
     // TODO: replace unwrap
     let combined_config = cli_config
         .or(env_config())
         .or(default_config(network));
 
-    Nep141BridgingBuilder::default()
+    Nep141ConnectorBuilder::default()
         .eth_endpoint(combined_config.eth_rpc)
         .eth_chain_id(combined_config.eth_chain_id)
         .near_endpoint(combined_config.near_rpc)

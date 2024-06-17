@@ -24,12 +24,6 @@ pub enum SdkError {
     UnknownError
 }
 
-impl From<config::ConfigError> for SdkError {
-    fn from(error: config::ConfigError) -> Self {
-        SdkError::ConfigError(error.to_string())
-    }
-}
-
 impl From<EthProofError> for SdkError {
     fn from(error: EthProofError) -> Self {
         SdkError::EthProofError(error.to_string())
@@ -49,10 +43,4 @@ impl From<NearLightClientOnEthError> for SdkError {
             NearLightClientOnEthError::EthRpcError(e) => SdkError::EthRpcError(e),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Env {
-    Mainnet,
-    Testnet,
 }

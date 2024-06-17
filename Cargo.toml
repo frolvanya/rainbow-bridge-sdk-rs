@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "bridge-cli",
-    "bridge-sdk",
-    "eth-proof",
-    "near-rpc-client",
-    "near-light-client-on-eth"
+    "bridge-sdk/eth-proof",
+    "bridge-sdk/near-rpc-client",
+    "bridge-sdk/near-light-client-on-eth",
+    "bridge-sdk/nep141-connector"
 ]
