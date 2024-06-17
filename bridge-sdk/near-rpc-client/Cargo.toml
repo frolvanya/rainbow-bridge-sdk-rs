@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-lazy_static = "1.4.0"
-near-jsonrpc-client = "0.9.0"
-near-jsonrpc-primitives = "0.21.0"
-reqwest = { version = "0.11", features = ["json"] }
-near-primitives = "0.21.0"
-tokio = { version = "1", features = ["full"] }
-serde_json = "1.0.117"
-thiserror = "1.0.61"
-near-crypto = "0.21.0"
+thiserror.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+lazy_static.workspace = true
+near-jsonrpc-client.workspace = true
+near-jsonrpc-primitives.workspace = true
+near-primitives.workspace = true
+near-crypto.workspace = true
