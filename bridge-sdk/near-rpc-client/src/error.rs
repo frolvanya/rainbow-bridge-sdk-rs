@@ -1,11 +1,24 @@
-use near_jsonrpc_client::errors::JsonRpcError;
+use near_jsonrpc_client::{
+    errors::JsonRpcError,
+    methods::{
+        block::RpcBlockError,
+        broadcast_tx_async::RpcBroadcastTxAsyncError,
+        query::RpcQueryError,
+        tx::RpcTransactionError,
+    }
+};
+use near_jsonrpc_primitives::types::light_client::RpcLightClientProofError;
 
 #[derive(thiserror::Error, Debug)]
-#[error("Failed to generate Ethereum proof: {0}")]
-pub struct NearRpcError(#[source] pub Box<dyn std::error::Error>);
-
-impl<E: std::fmt::Debug + std::fmt::Display + 'static> From<JsonRpcError<E>> for NearRpcError {
-    fn from(error: JsonRpcError<E>) -> Self {
-        NearRpcError(Box::new(error))
-    }
+#[error("Near RPC error: {0}")]
+pub enum NearRpcError {
+    RpcQueryError(#[from] JsonRpcError<RpcQueryError>),
+    RpcBroadcastTxAsyncError(#[from] JsonRpcError<RpcBroadcastTxAsyncError>),
+    RpcLightClientProofError(#[from] JsonRpcError<RpcLightClientProofError>),
+    RpcBlockError(#[from] JsonRpcError<RpcBlockError>),
+    RpcTransactionError(#[from] JsonRpcError<RpcTransactionError>),
+    #[error("Could not retrieve nonce for account")]
+    NonceError,
+    #[error("Could not confirm that transaction was finalized")]
+    FinalizationError
 }

@@ -121,7 +121,7 @@ pub async fn change(
 
     let current_nonce = match access_key_query_response.kind {
         QueryResponseKind::AccessKey(access_key) => access_key.nonce,
-        _ => Err(NearRpcError("Failed to extract nonce".to_owned().into()))?,
+        _ => Err(NearRpcError::NonceError)?,
     };
     let transaction = Transaction {
         signer_id: signer.account_id.clone(),
@@ -192,7 +192,7 @@ pub async fn wait_for_tx_final_outcome(
 
         let delta = (time::Instant::now() - sent_at).as_secs();
         if delta > timeout_sec {
-            Err(NearRpcError("Couldn't confirm that transaction was finalized".to_owned().into()))?;
+            Err(NearRpcError::FinalizationError)?;
         }
 
         match response {
@@ -201,7 +201,7 @@ pub async fn wait_for_tx_final_outcome(
                     time::sleep(time::Duration::from_secs(2)).await;
                     continue;
                 }
-                _ => Err(NearRpcError(Box::new(err)))?,
+                _ => Err(NearRpcError::RpcTransactionError(err))?,
             },
             Ok(response) => match response.final_execution_outcome {
                 None => {
