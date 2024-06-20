@@ -2,17 +2,11 @@ use cita_trie::TrieError;
 use crate::eth_rpc_client::EthRpcError;
 
 #[derive(thiserror::Error, Debug)]
-#[error("Failed to generate Ethereum proof: {0}")]
-pub struct EthProofError(pub String);
-
-impl From<TrieError> for EthProofError {
-    fn from(error: TrieError) -> Self {
-        EthProofError(error.to_string())
-    }
-}
-
-impl From<EthRpcError> for EthProofError {
-    fn from(error: EthRpcError) -> Self {
-        EthProofError(error.to_string())
-    }
+pub enum EthProofError {
+    #[error("Could not build a merkle trie for the proof: {0}")]
+    TrieError(#[from] TrieError),
+    #[error("Could not fetch data for Ethereum proof: {0}")]
+    EthRpcError(#[from] EthRpcError),
+    #[error("Could not generate Ethereum proof: {0}")]
+    Other(String),
 }

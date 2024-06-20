@@ -42,7 +42,7 @@ pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) 
 
     Ok(Proof {
         log_index: log_index_in_receipt as u64,
-        log_entry_data: log_data.ok_or(EthProofError("Log not found".to_string()))?,
+        log_entry_data: log_data.ok_or(EthProofError::Other("Log not found based on the transaction hash and index provided".to_string()))?,
         receipt_index: receipt.transaction_index.as_u64(),
         receipt_data: encode_receipt(&receipt),
         header_data: encode_header(&block_header),

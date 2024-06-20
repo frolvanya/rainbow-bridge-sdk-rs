@@ -8,13 +8,11 @@ pub mod types;
 mod serde;
 
 #[derive(thiserror::Error, Debug)]
-#[error("Ethereum RPC error: {0}")]
-pub struct EthRpcError(String);
-
-impl From<reqwest::Error> for EthRpcError {
-    fn from(error: reqwest::Error) -> Self {
-        EthRpcError(error.to_string())
-    }
+pub enum EthRpcError {
+    #[error("Ethereum RPC error: {0}")]
+    TransportError(#[from] reqwest::Error),
+    #[error("Couldn't deserialize Ethereum RPC response: {0}")]
+    ParseError(#[from] serde_json::Error),
 }
 
 pub struct EthRPCClient {
@@ -45,10 +43,8 @@ impl EthRPCClient {
             .send().await?
             .text().await?;
 
-        let val: Value = serde_json::from_str(&res)
-            .map_err(|_| EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
-        let receipt = TransactionReceipt::deserialize(&val["result"])
-            .map_err(|_| EthRpcError("Couldn't deserialize transaction receipt".to_string()))?;
+        let val: Value = serde_json::from_str(&res)?;
+        let receipt = TransactionReceipt::deserialize(&val["result"])?;
 
         Ok(receipt)
     }
@@ -68,10 +64,8 @@ impl EthRPCClient {
             .send().await?
             .text().await?;
 
-        let val: Value = serde_json::from_str(&res)
-            .map_err(|_| EthRpcError("Couldn't deserialize block number".to_string()))?;
-        let header = BlockHeader::deserialize(&val["result"])
-            .map_err(|_| EthRpcError("Couldn't deserialize block number".to_string()))?;
+        let val: Value = serde_json::from_str(&res)?;
+        let header = BlockHeader::deserialize(&val["result"])?;
 
         Ok(header)
     }
@@ -94,10 +88,8 @@ impl EthRPCClient {
             .send().await?
             .text().await?;
 
-        let val: Value = serde_json::from_str(&res)
-            .map_err(|_| EthRpcError("Couldn't deserialize block receipts".to_string()))?;
-        let receipts = Vec::<TransactionReceipt>::deserialize(&val["result"])
-            .map_err(|_| EthRpcError("Couldn't deserialize block receipts".to_string()))?;
+        let val: Value = serde_json::from_str(&res)?;
+        let receipts = Vec::<TransactionReceipt>::deserialize(&val["result"])?;
 
         Ok(receipts)
     }
