@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
 use near_jsonrpc_client::{methods, JsonRpcClient, JsonRpcClientConnector};
 use near_jsonrpc_primitives::types::query::{QueryResponseKind, RpcQueryResponse};
 use near_jsonrpc_primitives::types::transactions::TransactionInfo;
@@ -10,6 +9,7 @@ use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use tokio::time;
 use crate::error::NearRpcError;
+use crate::light_client_proof::LightClientExecutionProof;
 
 pub const DEFAULT_WAIT_FINAL_OUTCOME_TIMEOUT_SEC: u64 = 500;
 
@@ -52,7 +52,7 @@ pub async fn get_light_client_proof(
     server_addr: &str,
     id: near_primitives::types::TransactionOrReceiptId,
     light_client_head: CryptoHash,
-) -> Result<RpcLightClientExecutionProofResponse, NearRpcError> {
+) -> Result<LightClientExecutionProof, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
 
     let request =
@@ -61,7 +61,7 @@ pub async fn get_light_client_proof(
             light_client_head,
         };
 
-    Ok(client.call(request).await?)
+    Ok(client.call(request).await?.into())
 }
 
 pub async fn get_final_block_timestamp(

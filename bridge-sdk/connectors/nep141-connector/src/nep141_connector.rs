@@ -4,7 +4,6 @@ use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::{AccountId, TransactionOrReceiptId}};
 use crate::result::{Result, SdkError};
-use crate::light_client_proof::LightClientExecutionProof;
 use eth_proof;
 use near_light_client_on_eth::NearOnEthClient;
 
@@ -123,11 +122,11 @@ impl Nep141Connector {
                 .map_err(|_| SdkError::UnknownError)?
         };
 
-        let proof_data: LightClientExecutionProof = near_rpc_client::get_light_client_proof(
+        let proof_data = near_rpc_client::get_light_client_proof(
             near_endpoint,
             receipt_id,
             CryptoHash(block_hash)
-        ).await?.into();
+        ).await?;
 
         let mut buffer: Vec<u8> = Vec::new();
         proof_data.serialize(&mut buffer)
@@ -178,11 +177,11 @@ impl Nep141Connector {
                 .map_err(|_| SdkError::UnknownError)?
         };
 
-        let proof_data: LightClientExecutionProof = near_rpc_client::get_light_client_proof(
+        let proof_data = near_rpc_client::get_light_client_proof(
             near_endpoint,
             receipt_id,
             CryptoHash(block_hash)
-        ).await?.into();
+        ).await?;
 
         let mut buffer: Vec<u8> = Vec::new();
         proof_data.serialize(&mut buffer)

@@ -7,4 +7,7 @@ edition = "2021"
 clap = { version = "4.5", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 dotenv = { version = "0.15" }
-nep141-connector = { path = "../bridge-sdk/nep141-connector" }
+nep141-connector = { path = "../bridge-sdk/connectors/nep141-connector" }
+eth-connector = { path = "../bridge-sdk/connectors/eth-connector" }
+ethers-core = "2.0.14"
+near-primitives.workspace = true
