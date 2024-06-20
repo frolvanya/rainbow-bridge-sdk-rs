@@ -9,7 +9,7 @@ use near_primitives::types::{AccountId, BlockReference, Finality, FunctionArgs};
 use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use tokio::time;
-use crate::common::{SdkError, Result};
+use crate::error::NearRpcError;
 
 pub const DEFAULT_WAIT_FINAL_OUTCOME_TIMEOUT_SEC: u64 = 500;
 
@@ -35,7 +35,7 @@ pub async fn view(
     contract_account_id: AccountId,
     method_name: String,
     args: serde_json::Value,
-) -> Result<RpcQueryResponse> {
+) -> Result<RpcQueryResponse, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let request = methods::query::RpcQueryRequest {
         block_reference: BlockReference::Finality(Finality::Final),
@@ -52,7 +52,7 @@ pub async fn get_light_client_proof(
     server_addr: &str,
     id: near_primitives::types::TransactionOrReceiptId,
     light_client_head: CryptoHash,
-) -> Result<RpcLightClientExecutionProofResponse> {
+) -> Result<RpcLightClientExecutionProofResponse, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
 
     let request =
@@ -66,7 +66,7 @@ pub async fn get_light_client_proof(
 
 pub async fn get_final_block_timestamp(
     server_addr: &str,
-) -> Result<u64> {
+) -> Result<u64, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let request = methods::block::RpcBlockRequest {
         block_reference: BlockReference::Finality(Finality::Final),
@@ -78,7 +78,7 @@ pub async fn get_final_block_timestamp(
 
 pub async fn get_last_near_block_height(
     server_addr: &str,
-) -> Result<u64> {
+) -> Result<u64, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let request = methods::block::RpcBlockRequest {
         block_reference: BlockReference::latest(),
@@ -91,7 +91,7 @@ pub async fn get_last_near_block_height(
 pub async fn get_block(
     server_addr: &str,
     block_reference: BlockReference,
-) -> Result<near_primitives::views::BlockView> {
+) -> Result<near_primitives::views::BlockView, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let request = methods::block::RpcBlockRequest { block_reference };
     let block_info = client.call(request).await?;
@@ -106,7 +106,7 @@ pub async fn change(
     args: Vec<u8>,
     gas: u64,
     deposit: u128,
-) -> Result<CryptoHash> {
+) -> Result<CryptoHash, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let rpc_request = methods::query::RpcQueryRequest {
         block_reference: BlockReference::latest(),
@@ -121,7 +121,7 @@ pub async fn change(
 
     let current_nonce = match access_key_query_response.kind {
         QueryResponseKind::AccessKey(access_key) => access_key.nonce,
-        _ => Err(SdkError::NearRpcError("Failed to extract nonce".to_owned().into()))?,
+        _ => Err(NearRpcError::NonceError)?,
     };
     let transaction = Transaction {
         signer_id: signer.account_id.clone(),
@@ -151,7 +151,7 @@ pub async fn change_and_wait_for_outcome(
     args: serde_json::Value,
     gas: u64,
     deposit: u128,
-) -> Result<FinalExecutionOutcomeView> {
+) -> Result<FinalExecutionOutcomeView, NearRpcError> {
     let tx_hash = change(
         server_addr,
         signer.clone(),
@@ -177,7 +177,7 @@ pub async fn wait_for_tx_final_outcome(
     account_id: AccountId,
     server_addr: &str,
     timeout_sec: u64,
-) -> Result<FinalExecutionOutcomeView> {
+) -> Result<FinalExecutionOutcomeView, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let sent_at = time::Instant::now();
     let tx_info = TransactionInfo::TransactionId { tx_hash: hash, sender_account_id: account_id };
@@ -192,7 +192,7 @@ pub async fn wait_for_tx_final_outcome(
 
         let delta = (time::Instant::now() - sent_at).as_secs();
         if delta > timeout_sec {
-            Err(SdkError::NearTxFinalizationError)?;
+            Err(NearRpcError::FinalizationError)?;
         }
 
         match response {
@@ -201,7 +201,7 @@ pub async fn wait_for_tx_final_outcome(
                     time::sleep(time::Duration::from_secs(2)).await;
                     continue;
                 }
-                _ => Err(SdkError::NearRpcError(Box::new(err)))?,
+                _ => Err(NearRpcError::RpcTransactionError(err))?,
             },
             Ok(response) => match response.final_execution_outcome {
                 None => {

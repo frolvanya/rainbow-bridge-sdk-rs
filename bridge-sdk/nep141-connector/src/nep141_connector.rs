@@ -3,10 +3,10 @@ use borsh::BorshSerialize;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::{AccountId, TransactionOrReceiptId}};
-use crate::{common::{Result, SdkError}, eth_proof_generator, near_on_eth_client::NearOnEthClient, near_rpc_client};
-use light_client_proof::LightClientExecutionProof;
-
-mod light_client_proof;
+use crate::result::{Result, SdkError};
+use crate::light_client_proof::LightClientExecutionProof;
+use eth_proof;
+use near_light_client_on_eth::NearOnEthClient;
 
 abigen!(
     BridgeTokenFactory,
@@ -28,7 +28,7 @@ abigen!(
 
 /// Bridging NEAR-originated NEP-141 tokens to Ethereum and back
 #[derive(Builder)]
-pub struct Nep141Bridging {
+pub struct Nep141Connector {
     #[doc = r"Ethereum RPC endpoint. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
     eth_endpoint: Option<String>,
     #[doc = r"Ethereum chain id. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
@@ -49,7 +49,7 @@ pub struct Nep141Bridging {
     near_light_client_address: Option<String>,
 }
 
-impl Nep141Bridging {
+impl Nep141Connector {
     /// Creates an empty instance of the bridging client. Property values can be set separately depending on the required use case.
     pub fn new() -> Self {
         Self {
@@ -73,7 +73,7 @@ impl Nep141Bridging {
             .to_string()
             .into_bytes();
 
-        Ok(near_rpc_client::methods::change(
+        Ok(near_rpc_client::change(
             near_endpoint,
             self.near_signer()?,
             self.token_locker_id()?.to_string(),
@@ -93,7 +93,7 @@ impl Nep141Bridging {
             .to_string()
             .into_bytes();
 
-        Ok(near_rpc_client::methods::change(
+        Ok(near_rpc_client::change(
             near_endpoint,
             self.near_signer()?,
             near_token_id,
@@ -123,7 +123,7 @@ impl Nep141Bridging {
                 .map_err(|_| SdkError::UnknownError)?
         };
 
-        let proof_data: LightClientExecutionProof = near_rpc_client::methods::get_light_client_proof(
+        let proof_data: LightClientExecutionProof = near_rpc_client::get_light_client_proof(
             near_endpoint,
             receipt_id,
             CryptoHash(block_hash)
@@ -149,7 +149,7 @@ impl Nep141Bridging {
             .to_string()
             .into_bytes();
 
-        let tx_hash = near_rpc_client::methods::change(
+        let tx_hash = near_rpc_client::change(
             near_endpoint,
             self.near_signer()?,
             near_token_id,
@@ -178,7 +178,7 @@ impl Nep141Bridging {
                 .map_err(|_| SdkError::UnknownError)?
         };
 
-        let proof_data: LightClientExecutionProof = near_rpc_client::methods::get_light_client_proof(
+        let proof_data: LightClientExecutionProof = near_rpc_client::get_light_client_proof(
             near_endpoint,
             receipt_id,
             CryptoHash(block_hash)
@@ -237,14 +237,14 @@ impl Nep141Bridging {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
-        let proof = eth_proof_generator::get_proof_for_event(tx_hash, log_index, eth_endpoint)
+        let proof = eth_proof::get_proof_for_event(tx_hash, log_index, eth_endpoint)
             .await?;
 
         let mut args = Vec::new();
         proof.serialize(&mut args)
             .map_err(|_| SdkError::EthProofError("Failed to serialize proof".to_string()))?;
 
-        let tx_hash = near_rpc_client::methods::change(
+        let tx_hash = near_rpc_client::change(
             near_endpoint,
             self.near_signer()?,
             self.token_locker_id()?.to_string(),

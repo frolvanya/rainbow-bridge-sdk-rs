@@ -1,6 +1,8 @@
 use std::result;
+use eth_proof::EthProofError;
 use ethers::{contract::ContractError, providers::Middleware};
-use near_jsonrpc_client::errors::JsonRpcError;
+use near_light_client_on_eth::NearLightClientOnEthError;
+use near_rpc_client::NearRpcError;
 
 pub type Result<T> = result::Result<T, SdkError>;
 
@@ -11,7 +13,7 @@ pub enum SdkError {
     #[error("Error communicating with Ethereum: {0}")]
     EthRpcError(String),
     #[error("Error communicating with Near")]
-    NearRpcError(#[source] Box<dyn std::error::Error>),
+    NearRpcError(#[from] NearRpcError),
     #[error("Near transaction has been sent but its result couldn't be obtained")]
     NearTxFinalizationError,
     #[error("Error retrieving Near proof: {0}")]
@@ -22,9 +24,9 @@ pub enum SdkError {
     UnknownError
 }
 
-impl From<config::ConfigError> for SdkError {
-    fn from(error: config::ConfigError) -> Self {
-        SdkError::ConfigError(error.to_string())
+impl From<EthProofError> for SdkError {
+    fn from(error: EthProofError) -> Self {
+        SdkError::EthProofError(error.to_string())
     }
 }
 
@@ -34,14 +36,11 @@ impl<M: Middleware> From<ContractError<M>> for SdkError {
     }
 }
 
-impl<E: std::fmt::Debug + std::fmt::Display + 'static> From<JsonRpcError<E>> for SdkError {
-    fn from(error: JsonRpcError<E>) -> Self {
-        SdkError::NearRpcError(Box::new(error))
+impl From<NearLightClientOnEthError> for SdkError {
+    fn from(error: NearLightClientOnEthError) -> Self {
+        match error {
+            NearLightClientOnEthError::ConfigError(e) => SdkError::ConfigError(e),
+            NearLightClientOnEthError::EthRpcError(e) => SdkError::EthRpcError(e),
+        }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Env {
-    Mainnet,
-    Testnet,
 }
