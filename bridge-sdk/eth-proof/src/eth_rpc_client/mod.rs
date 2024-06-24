@@ -8,7 +8,7 @@ pub mod types;
 mod serde;
 
 #[derive(thiserror::Error, Debug)]
-pub enum EthRpcError {
+pub enum EthClientError {
     #[error("Ethereum RPC error: {0}")]
     TransportError(#[from] reqwest::Error),
     #[error("Couldn't deserialize Ethereum RPC response: {0}")]
@@ -28,7 +28,7 @@ impl EthRPCClient {
         }
     }
 
-    pub async fn get_transaction_receipt_by_hash(&self, tx_hash: &H256) -> Result<TransactionReceipt, EthRpcError> {
+    pub async fn get_transaction_receipt_by_hash(&self, tx_hash: &H256) -> Result<TransactionReceipt, EthClientError> {
         let json_value = json!({
             "id": 1,
             "jsonrpc": "2.0",
@@ -49,7 +49,7 @@ impl EthRPCClient {
         Ok(receipt)
     }
 
-    pub async fn get_block_by_number(&self, block_number: U64) -> Result<BlockHeader, EthRpcError> {
+    pub async fn get_block_by_number(&self, block_number: U64) -> Result<BlockHeader, EthClientError> {
         let json_value = json!({
             "id": 1,
             "jsonrpc": "2.0",
@@ -73,7 +73,7 @@ impl EthRPCClient {
     pub async fn get_block_receipts(
         &self,
         block_number: U64,
-    ) -> Result<Vec<TransactionReceipt>, EthRpcError> {
+    ) -> Result<Vec<TransactionReceipt>, EthClientError> {
         let json_value = json!({
             "id": 1,
             "jsonrpc": "2.0",

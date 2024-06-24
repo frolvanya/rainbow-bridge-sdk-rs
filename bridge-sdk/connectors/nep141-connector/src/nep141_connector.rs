@@ -3,9 +3,9 @@ use borsh::BorshSerialize;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::{AccountId, TransactionOrReceiptId}};
-use crate::result::{Result, SdkError};
 use eth_proof;
 use near_light_client_on_eth::NearOnEthClient;
+use bridge_connector_common::result::{Result, BridgeSdkError};
 
 abigen!(
     BridgeTokenFactory,
@@ -119,7 +119,7 @@ impl Nep141Connector {
         let receipt_id = TransactionOrReceiptId::Receipt {
             receipt_id,
             receiver_id: AccountId::from_str(&self.token_locker_id()?)
-                .map_err(|_| SdkError::UnknownError)?
+                .map_err(|_| BridgeSdkError::UnknownError)?
         };
 
         let proof_data = near_rpc_client::get_light_client_proof(
@@ -130,7 +130,7 @@ impl Nep141Connector {
 
         let mut buffer: Vec<u8> = Vec::new();
         proof_data.serialize(&mut buffer)
-            .map_err(|_| SdkError::NearProofError("Failed to deserialize proof".to_string()))?;
+            .map_err(|_| BridgeSdkError::NearProofError("Failed to deserialize proof".to_string()))?;
     
         let factory = self.bridge_token_factory()?;
         let call = factory.new_bridge_token(buffer.into(), proof_block_height);
@@ -174,7 +174,7 @@ impl Nep141Connector {
         let receipt_id = TransactionOrReceiptId::Receipt {
             receipt_id,
             receiver_id: AccountId::from_str(&self.token_locker_id()?)
-                .map_err(|_| SdkError::UnknownError)?
+                .map_err(|_| BridgeSdkError::UnknownError)?
         };
 
         let proof_data = near_rpc_client::get_light_client_proof(
@@ -185,7 +185,7 @@ impl Nep141Connector {
 
         let mut buffer: Vec<u8> = Vec::new();
         proof_data.serialize(&mut buffer)
-            .map_err(|_| SdkError::NearProofError("Falied to deserialize proof".to_string()))?;
+            .map_err(|_| BridgeSdkError::NearProofError("Falied to deserialize proof".to_string()))?;
             
         let factory = self.bridge_token_factory()?;
         let call = factory.deposit(buffer.into(), proof_block_height);
@@ -220,7 +220,7 @@ impl Nep141Connector {
                 .send()
                 .await?
                 .await
-                .map_err(|e| SdkError::EthRpcError(e.to_string()))?;
+                .map_err(|e| ContractError::from(e))?;
 
             println!("Approved token for spending");
         }
@@ -241,7 +241,7 @@ impl Nep141Connector {
 
         let mut args = Vec::new();
         proof.serialize(&mut args)
-            .map_err(|_| SdkError::EthProofError("Failed to serialize proof".to_string()))?;
+            .map_err(|_| BridgeSdkError::EthProofError("Failed to serialize proof".to_string()))?;
 
         let tx_hash = near_rpc_client::change(
             near_endpoint,
@@ -259,62 +259,62 @@ impl Nep141Connector {
     fn eth_endpoint(&self) -> Result<&str> {
         Ok(self.eth_endpoint
             .as_ref()
-            .ok_or(SdkError::ConfigError("Ethereum rpc endpoint is not set".to_string()))?)
+            .ok_or(BridgeSdkError::ConfigError("Ethereum rpc endpoint is not set".to_string()))?)
     }
 
     fn near_endpoint(&self) -> Result<&str> {
         Ok(self.near_endpoint
             .as_ref()
-            .ok_or(SdkError::ConfigError("Near rpc endpoint is not set".to_string()))?)
+            .ok_or(BridgeSdkError::ConfigError("Near rpc endpoint is not set".to_string()))?)
     }
 
     fn token_locker_id(&self) -> Result<&str> {
         Ok(self.token_locker_id
             .as_ref()
-            .ok_or(SdkError::ConfigError("Token locker account id is not set".to_string()))?)
+            .ok_or(BridgeSdkError::ConfigError("Token locker account id is not set".to_string()))?)
     }
 
     fn near_light_client_address(&self) -> Result<Address> {
         self.near_light_client_address
             .as_ref()
-            .ok_or(SdkError::ConfigError("Near on Eth light client address is not set".to_string()))
+            .ok_or(BridgeSdkError::ConfigError("Near on Eth light client address is not set".to_string()))
             .and_then(|addr| Address::from_str(addr)
-                .map_err(|_| SdkError::ConfigError("near_light_client_address is not a valid Ethereum address".to_string()))
+                .map_err(|_| BridgeSdkError::ConfigError("near_light_client_address is not a valid Ethereum address".to_string()))
             )
     }
 
     fn bridge_token_factory_address(&self) -> Result<Address> {
         self.bridge_token_factory_address
             .as_ref()
-            .ok_or(SdkError::ConfigError("Bridge token factory address is not set".to_string()))
+            .ok_or(BridgeSdkError::ConfigError("Bridge token factory address is not set".to_string()))
             .and_then(|addr| Address::from_str(addr)
-                .map_err(|_| SdkError::ConfigError("bridge_token_factory_address is not a valid Ethereum address".to_string()))
+                .map_err(|_| BridgeSdkError::ConfigError("bridge_token_factory_address is not a valid Ethereum address".to_string()))
             )
     }
 
     fn near_signer(&self) -> Result<near_crypto::InMemorySigner> {
         let near_private_key = self.near_private_key
             .as_ref()
-            .ok_or(SdkError::ConfigError("Near account private key is not set".to_string()))?;
+            .ok_or(BridgeSdkError::ConfigError("Near account private key is not set".to_string()))?;
         let near_signer = self.near_signer
             .as_ref()
-            .ok_or(SdkError::ConfigError("Near signer account id is not set".to_string()))?;
+            .ok_or(BridgeSdkError::ConfigError("Near signer account id is not set".to_string()))?;
 
         Ok(near_crypto::InMemorySigner::from_secret_key(
             AccountId::from_str(near_signer)
-                .map_err(|_| SdkError::ConfigError("Invalid near signer account id".to_string()))?,
+                .map_err(|_| BridgeSdkError::ConfigError("Invalid near signer account id".to_string()))?,
             SecretKey::from_str(near_private_key)
-                .map_err(|_| SdkError::ConfigError("Invalid near private key".to_string()))?
+                .map_err(|_| BridgeSdkError::ConfigError("Invalid near private key".to_string()))?
         ))
     }
 
     fn bridge_token_factory(&self) -> Result<BridgeTokenFactory<SignerMiddleware<Provider<Http>,LocalWallet>>> {
         let eth_endpoint = self.eth_endpoint
             .as_ref()
-            .ok_or(SdkError::ConfigError("Ethereum rpc endpoint is not set".to_string()))?;
+            .ok_or(BridgeSdkError::ConfigError("Ethereum rpc endpoint is not set".to_string()))?;
 
         let eth_provider = Provider::<Http>::try_from(eth_endpoint)
-            .map_err(|_| SdkError::ConfigError("Invalid ethereum rpc endpoint url".to_string()))?;
+            .map_err(|_| BridgeSdkError::ConfigError("Invalid ethereum rpc endpoint url".to_string()))?;
 
         let wallet = self.eth_signer()?;
 
@@ -330,10 +330,10 @@ impl Nep141Connector {
     fn bridge_token(&self, address: Address) -> Result<ERC20<SignerMiddleware<Provider<Http>,LocalWallet>>> {
         let eth_endpoint = self.eth_endpoint
             .as_ref()
-            .ok_or(SdkError::ConfigError("Ethereum rpc endpoint is not set".to_string()))?;
+            .ok_or(BridgeSdkError::ConfigError("Ethereum rpc endpoint is not set".to_string()))?;
 
         let eth_provider = Provider::<Http>::try_from(eth_endpoint)
-            .map_err(|_| SdkError::ConfigError("Invalid ethereum rpc endpoint url".to_string()))?;
+            .map_err(|_| BridgeSdkError::ConfigError("Invalid ethereum rpc endpoint url".to_string()))?;
 
         let wallet = self.eth_signer()?;
 
@@ -349,22 +349,22 @@ impl Nep141Connector {
     fn eth_signer(&self) -> Result<LocalWallet> {
         let eth_private_key = self.eth_private_key
             .as_ref()
-            .ok_or(SdkError::ConfigError("Ethereum private key is not set".to_string()))?;
+            .ok_or(BridgeSdkError::ConfigError("Ethereum private key is not set".to_string()))?;
 
         let eth_chain_id = self.eth_chain_id
             .as_ref()
-            .ok_or(SdkError::ConfigError("Ethereum chain id is not set".to_string()))?
+            .ok_or(BridgeSdkError::ConfigError("Ethereum chain id is not set".to_string()))?
             .clone();
 
         let private_key_bytes = hex::decode(eth_private_key)
-            .map_err(|_| SdkError::ConfigError("Ethereum private key is not a valid hex string".to_string()))?;
+            .map_err(|_| BridgeSdkError::ConfigError("Ethereum private key is not a valid hex string".to_string()))?;
 
         if private_key_bytes.len() != 32 {
-            return Err(SdkError::ConfigError("Ethereum private key is of invalid length".to_string()));
+            return Err(BridgeSdkError::ConfigError("Ethereum private key is of invalid length".to_string()));
         }
 
         Ok(LocalWallet::from_bytes(&private_key_bytes)
-            .map_err(|_| SdkError::ConfigError("Invalid ethereum private key".to_string()))?
+            .map_err(|_| BridgeSdkError::ConfigError("Invalid ethereum private key".to_string()))?
             .with_chain_id(eth_chain_id))
     }
 }
