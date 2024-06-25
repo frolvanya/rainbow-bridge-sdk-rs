@@ -1,9 +1,9 @@
-use std::{env, str::FromStr};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use eth_connector::{EthConnector, EthConnectorBuilder};
 use ethers_core::types::{Address, TxHash};
 use near_primitives::hash::CryptoHash;
 use nep141_connector::{Nep141Connector, Nep141ConnectorBuilder};
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use std::{env, str::FromStr};
 
 mod defaults;
 
@@ -43,10 +43,16 @@ impl CliConfig {
             near_private_key: self.near_private_key.or(other.near_private_key),
             eth_private_key: self.eth_private_key.or(other.eth_private_key),
             token_locker_id: self.token_locker_id.or(other.token_locker_id),
-            bridge_token_factory_address: self.bridge_token_factory_address.or(other.bridge_token_factory_address),
-            near_light_client_eth_address: self.near_light_client_eth_address.or(other.near_light_client_eth_address),
+            bridge_token_factory_address: self
+                .bridge_token_factory_address
+                .or(other.bridge_token_factory_address),
+            near_light_client_eth_address: self
+                .near_light_client_eth_address
+                .or(other.near_light_client_eth_address),
             eth_custodian_address: self.eth_custodian_address.or(other.eth_custodian_address),
-            eth_connector_account_id: self.eth_connector_account_id.or(other.eth_connector_account_id),
+            eth_connector_account_id: self
+                .eth_connector_account_id
+                .or(other.eth_connector_account_id),
         }
     }
 }
@@ -136,7 +142,8 @@ struct Arguments {
 fn env_config() -> CliConfig {
     CliConfig {
         eth_rpc: env::var("ETH_RPC").ok(),
-        eth_chain_id: env::var("ETH_CHAIN_ID").ok()
+        eth_chain_id: env::var("ETH_CHAIN_ID")
+            .ok()
             .and_then(|val| val.parse::<u64>().ok()),
         near_rpc: env::var("NEAR_RPC").ok(),
         near_signer: env::var("NEAR_SIGNER").ok(),
@@ -160,8 +167,12 @@ fn default_config(network: Network) -> CliConfig {
             near_private_key: None,
             eth_private_key: None,
             token_locker_id: Some(defaults::TOKEN_LOCKER_ID_MAINNET.to_owned()),
-            bridge_token_factory_address: Some(defaults::BRIDGE_TOKEN_FACTORY_ADDRESS_MAINNET.to_owned()),
-            near_light_client_eth_address: Some(defaults::NEAR_LIGHT_CLIENT_ETH_ADDRESS_MAINNET.to_owned()),
+            bridge_token_factory_address: Some(
+                defaults::BRIDGE_TOKEN_FACTORY_ADDRESS_MAINNET.to_owned(),
+            ),
+            near_light_client_eth_address: Some(
+                defaults::NEAR_LIGHT_CLIENT_ETH_ADDRESS_MAINNET.to_owned(),
+            ),
             eth_connector_account_id: Some(defaults::ETH_CONNECTOR_ACCOUNT_ID_MAINNET.to_owned()),
             eth_custodian_address: Some(defaults::ETH_CUSTODIAN_ADDRESS_MAINNET.to_owned()),
         },
@@ -173,8 +184,12 @@ fn default_config(network: Network) -> CliConfig {
             near_private_key: None,
             eth_private_key: None,
             token_locker_id: Some(defaults::TOKEN_LOCKER_ID_TESTNET.to_owned()),
-            bridge_token_factory_address: Some(defaults::BRIDGE_TOKEN_FACTORY_ADDRESS_TESTNET.to_owned()),
-            near_light_client_eth_address: Some(defaults::NEAR_LIGHT_CLIENT_ETH_ADDRESS_TESTNET.to_owned()),
+            bridge_token_factory_address: Some(
+                defaults::BRIDGE_TOKEN_FACTORY_ADDRESS_TESTNET.to_owned(),
+            ),
+            near_light_client_eth_address: Some(
+                defaults::NEAR_LIGHT_CLIENT_ETH_ADDRESS_TESTNET.to_owned(),
+            ),
             eth_connector_account_id: Some(defaults::ETH_CONNECTOR_ACCOUNT_ID_TESTNET.to_owned()),
             eth_custodian_address: Some(defaults::ETH_CUSTODIAN_ADDRESS_TESTNET.to_owned()),
         },
@@ -186,9 +201,7 @@ fn default_config(network: Network) -> CliConfig {
 
 fn nep141_bridging(network: Network, cli_config: CliConfig) -> Nep141Connector {
     // TODO: replace unwrap
-    let combined_config = cli_config
-        .or(env_config())
-        .or(default_config(network));
+    let combined_config = cli_config.or(env_config()).or(default_config(network));
 
     Nep141ConnectorBuilder::default()
         .eth_endpoint(combined_config.eth_rpc)
@@ -205,9 +218,7 @@ fn nep141_bridging(network: Network, cli_config: CliConfig) -> Nep141Connector {
 }
 
 fn eth_connector(network: Network, cli_config: CliConfig) -> EthConnector {
-    let combined_config = cli_config
-        .or(env_config())
-        .or(default_config(network));
+    let combined_config = cli_config.or(env_config()).or(default_config(network));
 
     EthConnectorBuilder::default()
         .eth_endpoint(combined_config.eth_rpc)
@@ -257,45 +268,70 @@ async fn main() {
                 .await
                 .unwrap();
             println!("Tx hash: {:#?}", tx_hash)
-        },
-        SubCommand::EthConnector { cmd } => {
-            match cmd {
-                EthConnectorSubCommand::DepositToNear { amount, recipient_account_id, config_cli } => {
-                    let tx_hash = eth_connector(args.network, config_cli)
-                        .deposit_to_near(amount, recipient_account_id)
-                        .await
-                        .unwrap();
-                    println!("Tx hash: {:#?}", tx_hash)
-                },
-                EthConnectorSubCommand::DepositToEvm { amount, recipient_address, config_cli } => {
-                    let tx_hash = eth_connector(args.network, config_cli)
-                        .deposit_to_evm(amount, recipient_address)
-                        .await
-                        .unwrap();
-                    println!("Tx hash: {:#?}", tx_hash)
-                },
-                EthConnectorSubCommand::FinalizeDeposit { tx_hash, log_index, config_cli } => {
-                    let result_hash = eth_connector(args.network, config_cli)
-                        .finalize_deposit(TxHash::from_str(&tx_hash).expect("Invalid tx_hash"), log_index)
-                        .await
-                        .unwrap();
-                    println!("Tx hash: {:#?}", result_hash)
-                },
-                EthConnectorSubCommand::WithdrawFromNear { amount, recipient_address, config_cli } => {
-                    let tx_hash = eth_connector(args.network, config_cli)
-                        .withdraw(amount, Address::from_str(&recipient_address).expect("Invalid recipient_address"))
-                        .await
-                        .unwrap();
-                    println!("Tx hash: {:#?}", tx_hash)
-                },
-                EthConnectorSubCommand::FinalizeWithdraw { reciept_id, config_cli } => {
-                    let tx_hash = eth_connector(args.network, config_cli)
-                        .finalize_withdraw(CryptoHash::from_str(&reciept_id).expect("Invalid receipt_id"))
-                        .await
-                        .unwrap();
-                    println!("Tx hash: {:#?}", tx_hash)
-                },
-            }
         }
+        SubCommand::EthConnector { cmd } => match cmd {
+            EthConnectorSubCommand::DepositToNear {
+                amount,
+                recipient_account_id,
+                config_cli,
+            } => {
+                let tx_hash = eth_connector(args.network, config_cli)
+                    .deposit_to_near(amount, recipient_account_id)
+                    .await
+                    .unwrap();
+                println!("Tx hash: {:#?}", tx_hash)
+            }
+            EthConnectorSubCommand::DepositToEvm {
+                amount,
+                recipient_address,
+                config_cli,
+            } => {
+                let tx_hash = eth_connector(args.network, config_cli)
+                    .deposit_to_evm(amount, recipient_address)
+                    .await
+                    .unwrap();
+                println!("Tx hash: {:#?}", tx_hash)
+            }
+            EthConnectorSubCommand::FinalizeDeposit {
+                tx_hash,
+                log_index,
+                config_cli,
+            } => {
+                let result_hash = eth_connector(args.network, config_cli)
+                    .finalize_deposit(
+                        TxHash::from_str(&tx_hash).expect("Invalid tx_hash"),
+                        log_index,
+                    )
+                    .await
+                    .unwrap();
+                println!("Tx hash: {:#?}", result_hash)
+            }
+            EthConnectorSubCommand::WithdrawFromNear {
+                amount,
+                recipient_address,
+                config_cli,
+            } => {
+                let tx_hash = eth_connector(args.network, config_cli)
+                    .withdraw(
+                        amount,
+                        Address::from_str(&recipient_address).expect("Invalid recipient_address"),
+                    )
+                    .await
+                    .unwrap();
+                println!("Tx hash: {:#?}", tx_hash)
+            }
+            EthConnectorSubCommand::FinalizeWithdraw {
+                reciept_id,
+                config_cli,
+            } => {
+                let tx_hash = eth_connector(args.network, config_cli)
+                    .finalize_withdraw(
+                        CryptoHash::from_str(&reciept_id).expect("Invalid receipt_id"),
+                    )
+                    .await
+                    .unwrap();
+                println!("Tx hash: {:#?}", tx_hash)
+            }
+        },
     }
 }

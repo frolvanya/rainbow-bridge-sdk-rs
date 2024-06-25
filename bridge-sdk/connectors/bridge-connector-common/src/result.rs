@@ -1,8 +1,13 @@
-use std::result;
 use eth_proof::{EthClientError, EthProofError};
-use ethers::{contract::ContractError, middleware::SignerMiddleware, providers::{Http, Provider}, signers::LocalWallet};
+use ethers::{
+    contract::ContractError,
+    middleware::SignerMiddleware,
+    providers::{Http, Provider},
+    signers::LocalWallet,
+};
 use near_light_client_on_eth::NearLightClientOnEthError;
 use near_rpc_client::NearRpcError;
+use std::result;
 
 pub type Result<T> = result::Result<T, BridgeSdkError>;
 
@@ -34,7 +39,9 @@ impl From<EthProofError> for BridgeSdkError {
     fn from(error: EthProofError) -> Self {
         match error {
             EthProofError::TrieError(e) => BridgeSdkError::EthProofError(e.to_string()),
-            EthProofError::EthClientError(e) => BridgeSdkError::EthRpcError(EthRpcError::EthClientError(e)),
+            EthProofError::EthClientError(e) => {
+                BridgeSdkError::EthRpcError(EthRpcError::EthClientError(e))
+            }
             EthProofError::Other(e) => BridgeSdkError::EthProofError(e),
         }
     }
@@ -44,8 +51,9 @@ impl From<NearLightClientOnEthError> for BridgeSdkError {
     fn from(error: NearLightClientOnEthError) -> Self {
         match error {
             NearLightClientOnEthError::ConfigError(e) => BridgeSdkError::ConfigError(e),
-            NearLightClientOnEthError::EthRpcError(e) =>
-                BridgeSdkError::EthRpcError(EthRpcError::ProviderContractError(e)),
+            NearLightClientOnEthError::EthRpcError(e) => {
+                BridgeSdkError::EthRpcError(EthRpcError::ProviderContractError(e))
+            }
         }
     }
 }

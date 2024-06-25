@@ -1,11 +1,9 @@
 use near_jsonrpc_client::{
     errors::JsonRpcError,
     methods::{
-        block::RpcBlockError,
-        broadcast_tx_async::RpcBroadcastTxAsyncError,
-        query::RpcQueryError,
+        block::RpcBlockError, broadcast_tx_async::RpcBroadcastTxAsyncError, query::RpcQueryError,
         tx::RpcTransactionError,
-    }
+    },
 };
 use near_jsonrpc_primitives::types::light_client::RpcLightClientProofError;
 
@@ -20,5 +18,5 @@ pub enum NearRpcError {
     #[error("Could not retrieve nonce for account")]
     NonceError,
     #[error("Could not confirm that transaction was finalized")]
-    FinalizationError
+    FinalizationError,
 }

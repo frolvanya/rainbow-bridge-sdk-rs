@@ -1,4 +1,7 @@
-use ethers::{contract::ContractError, providers::{Http, Provider}};
+use ethers::{
+    contract::ContractError,
+    providers::{Http, Provider},
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum NearLightClientOnEthError {
