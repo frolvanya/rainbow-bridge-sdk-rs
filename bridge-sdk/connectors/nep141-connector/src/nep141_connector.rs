@@ -15,7 +15,7 @@ abigen!(
     r#"[
       function newBridgeToken(bytes memory proofData, uint64 proofBlockHeight) external returns (address)
       function deposit(bytes memory proofData, uint64 proofBlockHeight) external
-      function withdraw(string memory token, uint256 amount, string memory recipient) external
+      function withdraw(string memory token, uint128 amount, string memory recipient) external
       function nearToEthToken(string calldata nearTokenId) external view returns (address)
     ]"#
 );
@@ -222,7 +222,7 @@ impl Nep141Connector {
     pub async fn burn(
         &self,
         near_token_id: String,
-        amount: U256,
+        amount: u128,
         receiver: String,
     ) -> Result<TxHash> {
         let factory = self.bridge_token_factory()?;
@@ -241,9 +241,10 @@ impl Nep141Connector {
             .call()
             .await?;
 
-        if allowance < amount {
+        let amount256: ethers::types::U256 = amount.into();
+        if allowance < amount256 {
             bridge_token
-                .approve(bridge_token_factory_address, amount - allowance)
+                .approve(bridge_token_factory_address, amount256 - allowance)
                 .send()
                 .await?
                 .await

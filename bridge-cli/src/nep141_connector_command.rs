@@ -124,7 +124,7 @@ pub async fn match_subcommand(cmd: Nep141ConnectorSubCommand, network: Network) 
             config_cli,
         } => {
             let tx_hash = nep141_connector(network, config_cli)
-                .burn(token, amount.into(), recipient)
+                .burn(token, amount, recipient)
                 .await
                 .unwrap();
             println!("Tx hash: {:#?}", tx_hash)
