@@ -524,6 +524,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1612,6 +1614,7 @@ dependencies = [
  "near-primitives",
  "near-rpc-client",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]
@@ -3489,6 +3492,7 @@ dependencies = [
  "near-primitives",
  "near-rpc-client",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]

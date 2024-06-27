@@ -49,6 +49,7 @@ pub struct EthConnector {
 
 impl EthConnector {
     /// Transfers ETH to the EthCustodian and sets recipient as a Near account. A proof from this transaction is then used to mint nETH on Near
+    #[tracing::instrument(skip_all, name = "deposit to near")]
     pub async fn deposit_to_near(
         &self,
         amount: u128,
@@ -60,10 +61,14 @@ impl EthConnector {
             .value(amount);
 
         let tx = call.send().await?;
+
+        tracing::info!(transaction_id = format!("{:?}", tx.tx_hash()), "Sent deposit transaction");
+
         Ok(tx.tx_hash())
     }
 
     /// Transfers ETH to the EthCustodian and sets recipient as an Aurora EVM account. A proof from this transaction is then used to mint nETH on Aurora
+    #[tracing::instrument(skip_all, name = "deposit to evm")]
     pub async fn deposit_to_evm(&self, amount: u128, recipient_address: String) -> Result<TxHash> {
         let eth_custodian = self.eth_custodian()?;
         let call = eth_custodian
@@ -71,10 +76,14 @@ impl EthConnector {
             .value(amount);
 
         let tx = call.send().await?;
+
+        tracing::info!(transaction_id = format!("{:?}", tx.tx_hash()), "Sent deposit transaction");
+
         Ok(tx.tx_hash())
     }
 
     /// Generates a proof of the deposit transaction and uses it to mint nETH either on Near or Aurora, depending on the recipient field of the deposit transaction
+    #[tracing::instrument(skip_all, name = "finalize deposit")]
     pub async fn finalize_deposit(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
@@ -85,6 +94,8 @@ impl EthConnector {
         proof
             .serialize(&mut args)
             .map_err(|_| BridgeSdkError::EthProofError("Failed to serialize proof".to_string()))?;
+
+        tracing::info!("Retrieved Ethereum proof");
 
         let tx_hash = near_rpc_client::change(
             near_endpoint,
@@ -97,10 +108,13 @@ impl EthConnector {
         )
         .await?;
 
+        tracing::info!(tx_hash = format!("{:?}", tx_hash), "Sent finalize deposit transaction");
+
         Ok(tx_hash)
     }
 
     /// Burns nNEAR on Near. A proof of this transaction is then used to unlock ETH on Ethereum
+    #[tracing::instrument(skip_all, name = "withdraw")]
     pub async fn withdraw(&self, amount: u128, recipient_address: Address) -> Result<CryptoHash> {
         let near_endpoint = self.near_endpoint()?;
         let eth_connector_account_id = self.eth_connector_account_id()?.to_string();
@@ -125,10 +139,14 @@ impl EthConnector {
         )
         .await?;
 
+        tracing::info!(tx_hash = format!("{:?}", tx_hash), "Sent withdraw transaction");
+
+
         Ok(tx_hash)
     }
 
     /// Generates a proof of the withdraw transaction and uses it to unlock ETH on Ethereum
+    #[tracing::instrument(skip_all, name = "finalize withdraw")]
     pub async fn finalize_withdraw(&self, receipt_id: CryptoHash) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
@@ -140,6 +158,8 @@ impl EthConnector {
         let block_hash = near_on_eth_client
             .get_block_hash(proof_block_height)
             .await?;
+
+        tracing::info!(proof_block_height, "Retrieved light client block height");
 
         let receipt_id = TransactionOrReceiptId::Receipt {
             receipt_id,
@@ -160,10 +180,14 @@ impl EthConnector {
             BridgeSdkError::NearProofError("Falied to deserialize proof".to_string())
         })?;
 
+        tracing::info!("Retrieved Near proof");
+
         let eth_custodian = self.eth_custodian()?;
         let call = eth_custodian.withdraw(buffer.into(), proof_block_height);
-
         let tx = call.send().await?;
+
+        tracing::info!(transaction_id = format!("{:?}", tx.tx_hash()), "Sent finalize withdraw transaction");
+
         Ok(tx.tx_hash())
     }
 
