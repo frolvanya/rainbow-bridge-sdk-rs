@@ -1,14 +1,14 @@
-use types::{BlockHeader, TransactionReceipt};
-use reqwest::Client;
 use ::serde::Deserialize;
-use serde_json::{json, Value};
 use ethereum_types::{H256, U64};
+use reqwest::Client;
+use serde_json::{json, Value};
+use types::{BlockHeader, TransactionReceipt};
 
-pub mod types;
 mod serde;
+pub mod types;
 
 #[derive(thiserror::Error, Debug)]
-pub enum EthRpcError {
+pub enum EthClientError {
     #[error("Ethereum RPC error: {0}")]
     TransportError(#[from] reqwest::Error),
     #[error("Couldn't deserialize Ethereum RPC response: {0}")]
@@ -28,7 +28,10 @@ impl EthRPCClient {
         }
     }
 
-    pub async fn get_transaction_receipt_by_hash(&self, tx_hash: &H256) -> Result<TransactionReceipt, EthRpcError> {
+    pub async fn get_transaction_receipt_by_hash(
+        &self,
+        tx_hash: &H256,
+    ) -> Result<TransactionReceipt, EthClientError> {
         let json_value = json!({
             "id": 1,
             "jsonrpc": "2.0",
@@ -40,8 +43,10 @@ impl EthRPCClient {
             .client
             .post(&self.endpoint_url)
             .json(&json_value)
-            .send().await?
-            .text().await?;
+            .send()
+            .await?
+            .text()
+            .await?;
 
         let val: Value = serde_json::from_str(&res)?;
         let receipt = TransactionReceipt::deserialize(&val["result"])?;
@@ -49,7 +54,10 @@ impl EthRPCClient {
         Ok(receipt)
     }
 
-    pub async fn get_block_by_number(&self, block_number: U64) -> Result<BlockHeader, EthRpcError> {
+    pub async fn get_block_by_number(
+        &self,
+        block_number: U64,
+    ) -> Result<BlockHeader, EthClientError> {
         let json_value = json!({
             "id": 1,
             "jsonrpc": "2.0",
@@ -61,8 +69,10 @@ impl EthRPCClient {
             .client
             .post(&self.endpoint_url)
             .json(&json_value)
-            .send().await?
-            .text().await?;
+            .send()
+            .await?
+            .text()
+            .await?;
 
         let val: Value = serde_json::from_str(&res)?;
         let header = BlockHeader::deserialize(&val["result"])?;
@@ -73,7 +83,7 @@ impl EthRPCClient {
     pub async fn get_block_receipts(
         &self,
         block_number: U64,
-    ) -> Result<Vec<TransactionReceipt>, EthRpcError> {
+    ) -> Result<Vec<TransactionReceipt>, EthClientError> {
         let json_value = json!({
             "id": 1,
             "jsonrpc": "2.0",
@@ -85,8 +95,10 @@ impl EthRPCClient {
             .client
             .post(&self.endpoint_url)
             .json(&json_value)
-            .send().await?
-            .text().await?;
+            .send()
+            .await?
+            .text()
+            .await?;
 
         let val: Value = serde_json::from_str(&res)?;
         let receipts = Vec::<TransactionReceipt>::deserialize(&val["result"])?;

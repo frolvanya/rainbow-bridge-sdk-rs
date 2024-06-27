@@ -1,5 +1,5 @@
 use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
-use near_primitives::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_primitives::borsh::{BorshDeserialize, BorshSerialize};
 
 // This code adjusts the struct `RpcLightClientExecutionProofResponse`
 // by removing some fields that are incompatible with the bridge proof

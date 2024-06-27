@@ -1,0 +1,13 @@
+[package]
+name = "bridge-connector-common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+thiserror.workspace = true
+ethers.workspace = true
+eth-proof = { path = "../../eth-proof" }
+near-rpc-client = { path = "../../near-rpc-client" }
+near-light-client-on-eth = { path = "../../near-light-client-on-eth" }

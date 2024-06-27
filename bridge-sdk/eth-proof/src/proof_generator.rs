@@ -1,12 +1,16 @@
-use crate::{error::EthProofError, eth_rpc_client::{
-    types::{BlockHeader, Log, TransactionReceipt, U8}, EthRPCClient
-}};
+use crate::{
+    error::EthProofError,
+    eth_rpc_client::{
+        types::{BlockHeader, Log, TransactionReceipt, U8},
+        EthRPCClient,
+    },
+};
 use borsh::BorshSerialize;
 use cita_trie::{MemoryDB, PatriciaTrie, Trie};
+use ethereum_types::H256;
 use hasher::HasherKeccak;
 use rlp::RlpStream;
 use std::sync::Arc;
-use ethereum_types::H256;
 
 #[derive(Debug, BorshSerialize)]
 pub struct Proof {
@@ -18,7 +22,11 @@ pub struct Proof {
     pub proof: Vec<Vec<u8>>,
 }
 
-pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) -> Result<Proof, EthProofError> {
+pub async fn get_proof_for_event(
+    tx_hash: H256,
+    log_index: u64,
+    node_url: &str,
+) -> Result<Proof, EthProofError> {
     let client = EthRPCClient::new(node_url);
 
     let receipt = client.get_transaction_receipt_by_hash(&tx_hash).await?;
@@ -42,7 +50,9 @@ pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) 
 
     Ok(Proof {
         log_index: log_index_in_receipt as u64,
-        log_entry_data: log_data.ok_or(EthProofError::Other("Log not found based on the transaction hash and index provided".to_string()))?,
+        log_entry_data: log_data.ok_or(EthProofError::Other(
+            "Log not found based on the transaction hash and index provided".to_string(),
+        ))?,
         receipt_index: receipt.transaction_index.as_u64(),
         receipt_data: encode_receipt(&receipt),
         header_data: encode_header(&block_header),
@@ -50,7 +60,9 @@ pub async fn get_proof_for_event(tx_hash: H256, log_index: u64, node_url: &str) 
     })
 }
 
-fn build_receipt_trie(receipts: &[TransactionReceipt],) -> Result<PatriciaTrie<MemoryDB, HasherKeccak>, EthProofError> {
+fn build_receipt_trie(
+    receipts: &[TransactionReceipt],
+) -> Result<PatriciaTrie<MemoryDB, HasherKeccak>, EthProofError> {
     let memdb = Arc::new(MemoryDB::new(true));
     let hasher = Arc::new(HasherKeccak::new());
     let mut trie = PatriciaTrie::new(memdb, hasher);
@@ -132,12 +144,11 @@ fn encode_header(header: &BlockHeader) -> Vec<u8> {
         .append(&header.nonce);
 
     header.base_fee_per_gas.map(|v| stream.append(&v));
-    header.withdrawals_root
-        .as_ref()
-        .map(|v| stream.append(v));
+    header.withdrawals_root.as_ref().map(|v| stream.append(v));
     header.blob_gas_used.map(|v| stream.append(&v));
     header.excess_blob_gas.map(|v| stream.append(&v));
-    header.parent_beacon_block_root
+    header
+        .parent_beacon_block_root
         .as_ref()
         .map(|v| stream.append(v));
 
@@ -148,11 +159,11 @@ fn encode_header(header: &BlockHeader) -> Vec<u8> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use std::{fs, str::FromStr};
     use hasher::Hasher;
     use serde_json::Value;
     use std::path::PathBuf;
-    
+    use std::{fs, str::FromStr};
+
     const RPC_URL: &str = "https://eth.llamarpc.com";
 
     /*
@@ -169,21 +180,27 @@ pub mod tests {
 
     #[tokio::test]
     async fn generate_proof_pre_shapella() {
-        let tx_hash = H256::from_str("0xc4a6c5cde1d243b26b013f805f71f6de91536f66c993abfee746f373203b68cc").unwrap();
+        let tx_hash =
+            H256::from_str("0xc4a6c5cde1d243b26b013f805f71f6de91536f66c993abfee746f373203b68cc")
+                .unwrap();
         let proof = get_proof_for_event(tx_hash, 251, RPC_URL).await.unwrap();
         verify_proof(proof, "pre_shapella_proof.json");
     }
 
     #[tokio::test]
     async fn generate_proof_post_shapella() {
-        let tx_hash = H256::from_str("0xd6ae351d6946f98c4b63589e2154db668e703e8c09fbd4e5c6807b5d356453c3").unwrap();
+        let tx_hash =
+            H256::from_str("0xd6ae351d6946f98c4b63589e2154db668e703e8c09fbd4e5c6807b5d356453c3")
+                .unwrap();
         let proof = get_proof_for_event(tx_hash, 172, RPC_URL).await.unwrap();
         verify_proof(proof, "post_shapella_proof.json");
     }
-    
+
     #[tokio::test]
     async fn generate_proof_post_dencun() {
-        let tx_hash = H256::from_str("0x42639810a1238a76ca947b848f5b88a854ac36471d1c4f6a15631393790f89af").unwrap();
+        let tx_hash =
+            H256::from_str("0x42639810a1238a76ca947b848f5b88a854ac36471d1c4f6a15631393790f89af")
+                .unwrap();
         let proof = get_proof_for_event(tx_hash, 360, RPC_URL).await.unwrap();
         verify_proof(proof, "post_dencun_proof.json");
     }
@@ -201,24 +218,47 @@ pub mod tests {
         let expected_header = obj["block_hash"].as_str().unwrap().into();
         let expected_receipt = obj["receipt"].as_str().unwrap().into();
         let expected_log = obj["log"].as_str().unwrap().into();
-        let expected_proof = obj["proof"].as_array().unwrap()
-            .iter().map(|x| x.as_str().unwrap().into()).collect::<Vec<String>>();
+        let expected_proof = obj["proof"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|x| x.as_str().unwrap().into())
+            .collect::<Vec<String>>();
 
-        (expected_log_index, expected_receipt_index, expected_header, expected_receipt, expected_log, expected_proof)
+        (
+            expected_log_index,
+            expected_receipt_index,
+            expected_header,
+            expected_receipt,
+            expected_log,
+            expected_proof,
+        )
     }
 
     fn verify_proof(proof: Proof, test_file: &str) {
-        let (expected_log_index, expected_receipt_index, expected_header, expected_receipt, expected_log, expected_proof)
-            = read_proof_data(test_file);
+        let (
+            expected_log_index,
+            expected_receipt_index,
+            expected_header,
+            expected_receipt,
+            expected_log,
+            expected_proof,
+        ) = read_proof_data(test_file);
 
         let hasher = HasherKeccak::new();
-        assert_eq!(hasher.digest(&proof.header_data), hex::decode(expected_header).unwrap());
+        assert_eq!(
+            hasher.digest(&proof.header_data),
+            hex::decode(expected_header).unwrap()
+        );
 
         assert_eq!(proof.log_index, expected_log_index);
         assert_eq!(proof.receipt_index, expected_receipt_index);
         assert_eq!(proof.receipt_data, hex::decode(expected_receipt).unwrap());
         assert_eq!(proof.log_entry_data, hex::decode(expected_log).unwrap());
         assert_eq!(proof.proof.len(), expected_proof.len());
-        assert!(proof.proof.into_iter().eq(expected_proof.iter().map(|x| hex::decode(x).unwrap())));
+        assert!(proof
+            .proof
+            .into_iter()
+            .eq(expected_proof.iter().map(|x| hex::decode(x).unwrap())));
     }
 }

@@ -1,6 +1,9 @@
-use std::sync::Arc;
 use ethereum_types::Address;
-use ethers::{contract::abigen, providers::{Http, Provider}};
+use ethers::{
+    contract::abigen,
+    providers::{Http, Provider},
+};
+use std::sync::Arc;
 
 use crate::error::NearLightClientOnEthError;
 
@@ -14,14 +17,14 @@ abigen!(
 
 pub struct NearOnEthClient {
     eth_endpoint: String,
-    near_on_eth_client_address: Address
+    near_on_eth_client_address: Address,
 }
 
 impl NearOnEthClient {
     pub fn new(near_one_eth_client_address: Address, eth_rpc_endpoint: String) -> Self {
         Self {
             eth_endpoint: eth_rpc_endpoint,
-            near_on_eth_client_address: near_one_eth_client_address
+            near_on_eth_client_address: near_one_eth_client_address,
         }
     }
 
@@ -29,25 +32,33 @@ impl NearOnEthClient {
         let eth_provider = self.eth_provider()?;
         let client = Arc::new(eth_provider);
         let contract = NearLightClient::new(self.near_on_eth_client_address, client);
-        
+
         let state = contract.bridge_state().call().await?;
 
         Ok(state.0.as_u64())
     }
 
-    pub async fn get_block_hash(&self, block_number: u64) -> Result<[u8; 32], NearLightClientOnEthError> {
+    pub async fn get_block_hash(
+        &self,
+        block_number: u64,
+    ) -> Result<[u8; 32], NearLightClientOnEthError> {
         let eth_provider = self.eth_provider()?;
         let client = Arc::new(eth_provider);
         let contract = NearLightClient::new(self.near_on_eth_client_address, client);
-        
+
         let state = contract.block_hashes(block_number).call().await?;
 
         Ok(state)
     }
 
     fn eth_provider(&self) -> Result<Provider<Http>, NearLightClientOnEthError> {
-        Ok(Provider::<Http>::try_from(self.eth_endpoint.clone())
-            .map_err(|_| NearLightClientOnEthError::ConfigError("Ethereum endpoint url is invalid".to_string()))?)
+        Ok(
+            Provider::<Http>::try_from(self.eth_endpoint.clone()).map_err(|_| {
+                NearLightClientOnEthError::ConfigError(
+                    "Ethereum endpoint url is invalid".to_string(),
+                )
+            })?,
+        )
     }
 }
 
@@ -59,9 +70,8 @@ mod tests {
         let near_on_eth_address = "0x202cdf10bfa45a3d2190901373edd864f071d707"
             .parse()
             .unwrap();
-        let eth_rpc_endpoint = "https://ethereum-sepolia-rpc.publicnode.com"
-            .to_string();
-        
+        let eth_rpc_endpoint = "https://ethereum-sepolia-rpc.publicnode.com".to_string();
+
         (eth_rpc_endpoint, near_on_eth_address)
     }
 
@@ -80,6 +90,12 @@ mod tests {
         let client = NearOnEthClient::new(near_on_eth_client_address, eth_rpc_endpoint);
 
         let block_hash = client.get_block_hash(164243835).await.unwrap();
-        assert_eq!(block_hash, [2, 14, 107, 125, 167, 203, 210, 235, 202, 31, 82, 98, 26, 4, 231, 202, 13, 30, 158, 149, 12, 235, 67, 66, 19, 33, 247, 240, 20, 162, 161, 67]);
+        assert_eq!(
+            block_hash,
+            [
+                2, 14, 107, 125, 167, 203, 210, 235, 202, 31, 82, 98, 26, 4, 231, 202, 13, 30, 158,
+                149, 12, 235, 67, 66, 19, 33, 247, 240, 20, 162, 161, 67
+            ]
+        );
     }
 }

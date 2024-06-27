@@ -1,5 +1,6 @@
+use crate::error::NearRpcError;
+use crate::light_client_proof::LightClientExecutionProof;
 use lazy_static::lazy_static;
-use near_jsonrpc_client::methods::light_client_proof::RpcLightClientExecutionProofResponse;
 use near_jsonrpc_client::{methods, JsonRpcClient, JsonRpcClientConnector};
 use near_jsonrpc_primitives::types::query::{QueryResponseKind, RpcQueryResponse};
 use near_jsonrpc_primitives::types::transactions::TransactionInfo;
@@ -9,7 +10,6 @@ use near_primitives::types::{AccountId, BlockReference, Finality, FunctionArgs};
 use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest};
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
 use tokio::time;
-use crate::error::NearRpcError;
 
 pub const DEFAULT_WAIT_FINAL_OUTCOME_TIMEOUT_SEC: u64 = 500;
 
@@ -52,7 +52,7 @@ pub async fn get_light_client_proof(
     server_addr: &str,
     id: near_primitives::types::TransactionOrReceiptId,
     light_client_head: CryptoHash,
-) -> Result<RpcLightClientExecutionProofResponse, NearRpcError> {
+) -> Result<LightClientExecutionProof, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
 
     let request =
@@ -61,12 +61,10 @@ pub async fn get_light_client_proof(
             light_client_head,
         };
 
-    Ok(client.call(request).await?)
+    Ok(client.call(request).await?.into())
 }
 
-pub async fn get_final_block_timestamp(
-    server_addr: &str,
-) -> Result<u64, NearRpcError> {
+pub async fn get_final_block_timestamp(server_addr: &str) -> Result<u64, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let request = methods::block::RpcBlockRequest {
         block_reference: BlockReference::Finality(Finality::Final),
@@ -76,9 +74,7 @@ pub async fn get_final_block_timestamp(
     Ok(block_info.header.timestamp)
 }
 
-pub async fn get_last_near_block_height(
-    server_addr: &str,
-) -> Result<u64, NearRpcError> {
+pub async fn get_last_near_block_height(server_addr: &str) -> Result<u64, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let request = methods::block::RpcBlockRequest {
         block_reference: BlockReference::latest(),
@@ -115,9 +111,7 @@ pub async fn change(
             public_key: signer.public_key.clone(),
         },
     };
-    let access_key_query_response = client
-        .call(rpc_request)
-        .await?;
+    let access_key_query_response = client.call(rpc_request).await?;
 
     let current_nonce = match access_key_query_response.kind {
         QueryResponseKind::AccessKey(access_key) => access_key.nonce,
@@ -180,7 +174,10 @@ pub async fn wait_for_tx_final_outcome(
 ) -> Result<FinalExecutionOutcomeView, NearRpcError> {
     let client = DEFAULT_CONNECTOR.connect(server_addr);
     let sent_at = time::Instant::now();
-    let tx_info = TransactionInfo::TransactionId { tx_hash: hash, sender_account_id: account_id };
+    let tx_info = TransactionInfo::TransactionId {
+        tx_hash: hash,
+        sender_account_id: account_id,
+    };
 
     loop {
         let response = client
@@ -209,7 +206,7 @@ pub async fn wait_for_tx_final_outcome(
                     continue;
                 }
                 Some(outcome) => return Ok(outcome.into_outcome()),
-            }
+            },
         }
     }
 }

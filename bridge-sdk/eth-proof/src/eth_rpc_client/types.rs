@@ -1,6 +1,6 @@
-use ethereum_types::{H256, Address, Bloom, U64, U128};
-use serde::Deserialize;
+use ethereum_types::{Address, Bloom, H256, U128, U64};
 use rlp::{Encodable, RlpStream};
+use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub struct Bytes(pub Vec<u8>);
@@ -19,7 +19,6 @@ impl Encodable for Bytes {
         self.0.rlp_append(s);
     }
 }
-
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
