@@ -2,7 +2,9 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use eth_connector_command::EthConnectorSubCommand;
 use nep141_connector_command::Nep141ConnectorSubCommand;
 use serde::Deserialize;
+use tracing::Level;
 use std::{env, fs::File, io::BufReader};
+use tracing_subscriber::{field::MakeExt, fmt::format, FmtSubscriber};
 
 mod defaults;
 mod eth_connector_command;
@@ -168,6 +170,25 @@ struct Arguments {
 
 #[tokio::main]
 async fn main() {
+    let field_formatter =
+        format::debug_fn(|writer, field, value| write!(writer, "{}: {:?}", field, value))
+            .display_messages()
+            .delimited(", ");
+
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::INFO)
+        .with_file(false)
+        .with_target(false)
+        .with_line_number(false)
+        .without_time()
+        .with_ansi(false)
+        .with_level(false)
+        .fmt_fields(field_formatter)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
     dotenv::dotenv().ok();
     let args = Arguments::parse();
 
