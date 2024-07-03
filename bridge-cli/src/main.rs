@@ -8,7 +8,7 @@ mod defaults;
 mod eth_connector_command;
 mod nep141_connector_command;
 
-#[derive(Args, Debug, Clone, Deserialize)]
+#[derive(Args, Debug, Clone, Deserialize, Default)]
 struct CliConfig {
     #[arg(long)]
     eth_rpc: Option<String>,
@@ -57,23 +57,6 @@ impl CliConfig {
                 .eth_connector_account_id
                 .or(other.eth_connector_account_id),
             config_file: self.config_file.or(other.config_file),
-        }
-    }
-
-    fn empty() -> Self {
-        Self {
-            eth_rpc: None,
-            eth_chain_id: None,
-            near_rpc: None,
-            near_signer: None,
-            near_private_key: None,
-            eth_private_key: None,
-            token_locker_id: None,
-            bridge_token_factory_address: None,
-            near_light_client_eth_address: None,
-            eth_custodian_address: None,
-            eth_connector_account_id: None,
-            config_file: None,
         }
     }
 }
@@ -148,7 +131,7 @@ fn file_config(path: &str) -> CliConfig {
 fn combined_config(cli_config: CliConfig, network: Network) -> CliConfig {
     let file_config = match &cli_config.config_file {
         Some(path) => file_config(path),
-        None => CliConfig::empty(),
+        None => CliConfig::default(),
     };
 
     cli_config
