@@ -69,7 +69,7 @@ impl Nep141Connector {
     }
 
     /// Logs token metadata to token_locker contract. The proof from this transaction is then used to deploy a corresponding token on Ethereum
-    #[tracing::instrument(skip_all, name = "log metadata")]
+    #[tracing::instrument(skip_all, name = "LOG METADATA")]
     pub async fn log_token_metadata(&self, near_token_id: String) -> Result<CryptoHash> {
         let near_endpoint = self.near_endpoint()?;
 
@@ -88,13 +88,13 @@ impl Nep141Connector {
         )
         .await?;
 
-        tracing::info!(transaction_id = tx_id.to_string(), "Sent log transaction");
+        tracing::info!(tx_hash = tx_id.to_string(), "Sent log transaction");
 
         Ok(tx_id)
     }
 
     /// Performs a storage deposit on behalf of the token_locker so that the tokens can be transferred to the locker. To be called once for each NEP-141
-    #[tracing::instrument(skip_all, name = "storage deposit")]
+    #[tracing::instrument(skip_all, name = "STORAGE DEPOSIT")]
     pub async fn storage_deposit_for_token(
         &self,
         near_token_id: String,
@@ -118,13 +118,13 @@ impl Nep141Connector {
         )
         .await?;
 
-        tracing::info!(transaction_id = tx_id.to_string(), "Sent storage deposit transaction");
+        tracing::info!(tx_hash = tx_id.to_string(), "Sent storage deposit transaction");
 
         Ok(tx_id)
     }
 
     /// Deploys an ERC-20 token that will be used when bridging NEP-141 tokens to Ethereum. Requires a receipt from log_metadata transaction on Near
-    #[tracing::instrument(skip_all, name = "deploy token")]
+    #[tracing::instrument(skip_all, name = "DEPLOY TOKEN")]
     pub async fn deploy_token(&self, receipt_id: CryptoHash) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
@@ -137,7 +137,7 @@ impl Nep141Connector {
             .get_block_hash(proof_block_height)
             .await?;
 
-        tracing::info!(proof_block_height, "Retrieved light client block height");
+        tracing::debug!(proof_block_height, "Retrieved light client block height");
 
         let receipt_id = TransactionOrReceiptId::Receipt {
             receipt_id,
@@ -157,7 +157,7 @@ impl Nep141Connector {
             BridgeSdkError::NearProofError("Failed to deserialize proof".to_string())
         })?;
 
-        tracing::info!("Retrieved Near receipt proof");
+        tracing::debug!("Retrieved Near receipt proof");
 
         let factory = self.bridge_token_factory()?;
         let call = factory.new_bridge_token(buffer.into(), proof_block_height);
@@ -170,7 +170,7 @@ impl Nep141Connector {
     }
 
     /// Transfers NEP-141 tokens to the token locker. The proof from this transaction is then used to mint the corresponding tokens on Ethereum
-    #[tracing::instrument(skip_all, name = "deposit")]
+    #[tracing::instrument(skip_all, name = "DEPOSIT")]
     pub async fn deposit(
         &self,
         near_token_id: String,
@@ -203,7 +203,7 @@ impl Nep141Connector {
     }
 
     /// Mints the corresponding bridged tokens on Ethereum. Requires a proof from the deposit transaction on Near
-    #[tracing::instrument(skip_all, name = "finalize_deposit")]
+    #[tracing::instrument(skip_all, name = "FINALIZE DEPOSIT")]
     pub async fn finalize_deposit(&self, receipt_id: CryptoHash) -> Result<TxHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
@@ -216,7 +216,7 @@ impl Nep141Connector {
             .get_block_hash(proof_block_height)
             .await?;
 
-        tracing::info!(proof_block_height, "Retrieved light client block height");
+        tracing::debug!(proof_block_height, "Retrieved light client block height");
 
         let receipt_id = TransactionOrReceiptId::Receipt {
             receipt_id,
@@ -231,7 +231,7 @@ impl Nep141Connector {
         )
         .await?;
 
-        tracing::info!(proof_block_height, "Retrieved Near proof");
+        tracing::debug!(proof_block_height, "Retrieved Near proof");
 
         let mut buffer: Vec<u8> = Vec::new();
         proof_data.serialize(&mut buffer).map_err(|_| {
@@ -248,7 +248,7 @@ impl Nep141Connector {
     }
 
     /// Burns bridged tokens on Ethereum. The proof from this transaction is then used to withdraw the corresponding tokens on Near
-    #[tracing::instrument(skip_all, name = "withdraw")]
+    #[tracing::instrument(skip_all, name = "WITHDRAW")]
     pub async fn withdraw(
         &self,
         near_token_id: String,
@@ -262,7 +262,7 @@ impl Nep141Connector {
             .call()
             .await?;
 
-        tracing::info!(address = format!("{:?}", erc20_address), "Retrieved ERC20 address");
+        tracing::debug!(address = format!("{:?}", erc20_address), "Retrieved ERC20 address");
 
         let bridge_token = &self.bridge_token(erc20_address)?;
 
@@ -282,7 +282,7 @@ impl Nep141Connector {
                 .await
                 .map_err(|e| ContractError::from(e))?;
             
-            tracing::info!("Approved tokens for spending");
+            tracing::debug!("Approved tokens for spending");
         }
 
         let withdraw_call = factory.withdraw(near_token_id, amount, receiver);
@@ -294,7 +294,7 @@ impl Nep141Connector {
     }
 
     /// Withdraws NEP-141 tokens from the token locker. Requires a proof from the burn transaction on Ethereum
-    #[tracing::instrument(skip_all, name = "finalize_withdraw")]
+    #[tracing::instrument(skip_all, name = "FINALIZE WITHDRAW")]
     pub async fn finalize_withdraw(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
@@ -306,7 +306,7 @@ impl Nep141Connector {
             .serialize(&mut args)
             .map_err(|_| BridgeSdkError::EthProofError("Failed to serialize proof".to_string()))?;
 
-        tracing::info!("Retrieved Ethereum proof");
+        tracing::debug!("Retrieved Ethereum proof");
 
         let tx_hash = near_rpc_client::change(
             near_endpoint,
