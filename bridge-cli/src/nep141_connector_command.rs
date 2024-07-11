@@ -65,33 +65,30 @@ pub enum Nep141ConnectorSubCommand {
 pub async fn match_subcommand(cmd: Nep141ConnectorSubCommand, network: Network) {
     match cmd {
         Nep141ConnectorSubCommand::LogMetadata { token, config_cli } => {
-            let tx_hash = nep141_connector(network, config_cli)
+            nep141_connector(network, config_cli)
                 .log_token_metadata(token)
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         Nep141ConnectorSubCommand::StorageDeposit {
             token,
             amount,
             config_cli,
         } => {
-            let tx_hash = nep141_connector(network, config_cli)
+            nep141_connector(network, config_cli)
                 .storage_deposit_for_token(token, amount)
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         Nep141ConnectorSubCommand::DeployToken {
             receipt_id,
             config_cli,
         } => {
             // TODO: use tx hash instead receipt_id
-            let tx_hash = nep141_connector(network, config_cli)
+            nep141_connector(network, config_cli)
                 .deploy_token(receipt_id.parse().expect("Invalid receipt_id"))
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         Nep141ConnectorSubCommand::Deposit {
             token,
@@ -99,22 +96,20 @@ pub async fn match_subcommand(cmd: Nep141ConnectorSubCommand, network: Network) 
             recipient,
             config_cli,
         } => {
-            let tx_hash = nep141_connector(network, config_cli)
+            nep141_connector(network, config_cli)
                 .deposit(token, amount, recipient)
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         Nep141ConnectorSubCommand::FinalizeDeposit {
             receipt_id,
             config_cli,
         } => {
             // TODO: use tx hash instead receipt_id
-            let tx_hash = nep141_connector(network, config_cli)
-                .mint(receipt_id.parse().expect("Invalid rreceipt_id"))
+            nep141_connector(network, config_cli)
+                .finalize_deposit(receipt_id.parse().expect("Invalid rreceipt_id"))
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         Nep141ConnectorSubCommand::Withdraw {
             token,
@@ -122,25 +117,23 @@ pub async fn match_subcommand(cmd: Nep141ConnectorSubCommand, network: Network) 
             recipient,
             config_cli,
         } => {
-            let tx_hash = nep141_connector(network, config_cli)
-                .burn(token, amount, recipient)
+            nep141_connector(network, config_cli)
+                .withdraw(token, amount, recipient)
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         Nep141ConnectorSubCommand::FinalizeWithdraw {
             tx_hash,
             log_index,
             config_cli,
         } => {
-            let tx_hash = nep141_connector(network, config_cli)
-                .withdraw(
+            nep141_connector(network, config_cli)
+                .finalize_withdraw(
                     TxHash::from_str(&tx_hash).expect("Invalid tx_hash"),
                     log_index,
                 )
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
     }
 }

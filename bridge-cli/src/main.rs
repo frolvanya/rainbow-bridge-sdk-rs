@@ -3,6 +3,7 @@ use eth_connector_command::EthConnectorSubCommand;
 use nep141_connector_command::Nep141ConnectorSubCommand;
 use serde::Deserialize;
 use std::{env, fs::File, io::BufReader};
+use tracing_subscriber::{field::MakeExt, fmt::format, EnvFilter, FmtSubscriber};
 
 mod defaults;
 mod eth_connector_command;
@@ -168,6 +169,7 @@ struct Arguments {
 
 #[tokio::main]
 async fn main() {
+    init_logger();
     dotenv::dotenv().ok();
     let args = Arguments::parse();
 
@@ -179,4 +181,31 @@ async fn main() {
             eth_connector_command::match_subcommand(cmd, args.network).await
         }
     }
+}
+
+fn init_logger() {
+    let field_formatter =
+        format::debug_fn(|writer, field, value|
+                match field.name() {
+                    "message" => write!(writer, "{:?}", value),
+                    _ => write!(writer, "{}={:?}", field, value),
+                })
+            .display_messages()
+            .delimited("\n");
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap()
+        .add_directive("nep141_connector=debug".parse().unwrap())
+        .add_directive("eth_connector=debug".parse().unwrap());
+
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(env_filter)
+        .with_file(false)
+        .with_target(false)
+        .with_line_number(false)
+        .with_level(false)
+        .fmt_fields(field_formatter)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
 }

@@ -54,60 +54,55 @@ pub async fn match_subcommand(cmd: EthConnectorSubCommand, network: Network) {
             recipient_account_id,
             config_cli,
         } => {
-            let tx_hash = eth_connector(network, config_cli)
+            eth_connector(network, config_cli)
                 .deposit_to_near(amount, recipient_account_id)
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         EthConnectorSubCommand::DepositToEvm {
             amount,
             recipient_address,
             config_cli,
         } => {
-            let tx_hash = eth_connector(network, config_cli)
+            eth_connector(network, config_cli)
                 .deposit_to_evm(amount, recipient_address)
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         EthConnectorSubCommand::FinalizeDeposit {
             tx_hash,
             log_index,
             config_cli,
         } => {
-            let result_hash = eth_connector(network, config_cli)
+            eth_connector(network, config_cli)
                 .finalize_deposit(
                     TxHash::from_str(&tx_hash).expect("Invalid tx_hash"),
                     log_index,
                 )
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", result_hash)
         }
         EthConnectorSubCommand::WithdrawFromNear {
             amount,
             recipient_address,
             config_cli,
         } => {
-            let tx_hash = eth_connector(network, config_cli)
+            eth_connector(network, config_cli)
                 .withdraw(
                     amount,
                     Address::from_str(&recipient_address).expect("Invalid recipient_address"),
                 )
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
         EthConnectorSubCommand::FinalizeWithdraw {
             reciept_id,
             config_cli,
         } => {
-            let tx_hash = eth_connector(network, config_cli)
+            eth_connector(network, config_cli)
                 .finalize_withdraw(CryptoHash::from_str(&reciept_id).expect("Invalid receipt_id"))
                 .await
                 .unwrap();
-            println!("Tx hash: {:#?}", tx_hash)
         }
     }
 }
