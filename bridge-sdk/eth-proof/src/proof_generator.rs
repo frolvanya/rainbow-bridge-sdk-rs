@@ -10,9 +10,10 @@ use cita_trie::{MemoryDB, PatriciaTrie, Trie};
 use ethereum_types::H256;
 use hasher::HasherKeccak;
 use rlp::RlpStream;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Debug, BorshSerialize)]
+#[derive(Debug, BorshSerialize, Serialize, Deserialize)]
 pub struct Proof {
     pub log_index: u64,
     pub log_entry_data: Vec<u8>,

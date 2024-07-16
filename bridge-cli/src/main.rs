@@ -1,12 +1,15 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use eth_connector_command::EthConnectorSubCommand;
+use fast_bridge_command::FastBridgeSubCommand;
 use nep141_connector_command::Nep141ConnectorSubCommand;
 use serde::Deserialize;
 use std::{env, fs::File, io::BufReader};
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{field::MakeExt, fmt::format, EnvFilter, FmtSubscriber};
 
 mod defaults;
 mod eth_connector_command;
+mod fast_bridge_command;
 mod nep141_connector_command;
 
 #[derive(Args, Debug, Clone, Deserialize, Default)]
@@ -34,6 +37,10 @@ struct CliConfig {
     #[arg(long)]
     eth_connector_account_id: Option<String>,
     #[arg(long)]
+    fast_bridge_account_id: Option<String>,
+    #[arg(long)]
+    fast_bridge_address: Option<String>,
+    #[arg(long)]
     config_file: Option<String>,
 }
 
@@ -57,6 +64,8 @@ impl CliConfig {
             eth_connector_account_id: self
                 .eth_connector_account_id
                 .or(other.eth_connector_account_id),
+            fast_bridge_account_id: self.fast_bridge_account_id.or(other.fast_bridge_account_id),
+            fast_bridge_address: self.fast_bridge_address.or(other.fast_bridge_address),
             config_file: self.config_file.or(other.config_file),
         }
     }
@@ -77,6 +86,8 @@ fn env_config() -> CliConfig {
         near_light_client_eth_address: env::var("NEAR_LIGHT_CLIENT_ADDRESS").ok(),
         eth_custodian_address: env::var("ETH_CUSTODIAN_ADDRESS").ok(),
         eth_connector_account_id: env::var("ETH_CONNECTOR_ACCOUNT_ID").ok(),
+        fast_bridge_account_id: env::var("FAST_BRIDGE_ACCOUNT_ID").ok(),
+        fast_bridge_address: env::var("FAST_BRIDGE_ADDRESS").ok(),
         config_file: None,
     }
 }
@@ -99,6 +110,8 @@ fn default_config(network: Network) -> CliConfig {
             ),
             eth_connector_account_id: Some(defaults::ETH_CONNECTOR_ACCOUNT_ID_MAINNET.to_owned()),
             eth_custodian_address: Some(defaults::ETH_CUSTODIAN_ADDRESS_MAINNET.to_owned()),
+            fast_bridge_account_id: Some(defaults::FAST_BRIDGE_ACCOUNT_ID_MAINNET.to_owned()),
+            fast_bridge_address: Some(defaults::FAST_BRIDGE_ADDRESS_MAINNET.to_owned()),
             config_file: None,
         },
         Network::Testnet => CliConfig {
@@ -117,6 +130,8 @@ fn default_config(network: Network) -> CliConfig {
             ),
             eth_connector_account_id: Some(defaults::ETH_CONNECTOR_ACCOUNT_ID_TESTNET.to_owned()),
             eth_custodian_address: Some(defaults::ETH_CUSTODIAN_ADDRESS_TESTNET.to_owned()),
+            fast_bridge_account_id: Some(defaults::FAST_BRIDGE_ACCOUNT_ID_TESTNET.to_owned()),
+            fast_bridge_address: Some(defaults::FAST_BRIDGE_ADDRESS_TESTNET.to_owned()),
             config_file: None,
         },
     }
@@ -151,6 +166,10 @@ enum SubCommand {
         #[clap(subcommand)]
         cmd: EthConnectorSubCommand,
     },
+    FastBridge {
+        #[clap(subcommand)]
+        cmd: FastBridgeSubCommand,
+    },
 }
 
 #[derive(ValueEnum, Clone, Debug)]
@@ -180,20 +199,24 @@ async fn main() {
         SubCommand::EthConnector { cmd } => {
             eth_connector_command::match_subcommand(cmd, args.network).await
         }
+        SubCommand::FastBridge { cmd } => {
+            fast_bridge_command::match_subcommand(cmd, args.network).await
+        }
     }
 }
 
 fn init_logger() {
-    let field_formatter =
-        format::debug_fn(|writer, field, value|
-                match field.name() {
-                    "message" => write!(writer, "{:?}", value),
-                    _ => write!(writer, "{}={:?}", field, value),
-                })
-            .display_messages()
-            .delimited("\n");
+    let field_formatter = format::debug_fn(|writer, field, value| match field.name() {
+        "message" => write!(writer, "{:?}", value),
+        _ => write!(writer, "{}={:?}", field, value),
+    })
+    .display_messages()
+    .delimited("\n");
 
-    let env_filter = EnvFilter::try_from_default_env().unwrap()
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env_lossy();
+    let env_filter = env_filter
         .add_directive("nep141_connector=debug".parse().unwrap())
         .add_directive("eth_connector=debug".parse().unwrap());
 
@@ -206,6 +229,5 @@ fn init_logger() {
         .fmt_fields(field_formatter)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 }
