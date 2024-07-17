@@ -2,7 +2,7 @@ use crate::{combined_config, CliConfig, Network};
 use clap::Subcommand;
 use ethers_core::types::{Address, TxHash};
 use fast_bridge::{FastBridge, FastBridgeBuilder};
-use near_primitives::{hash::CryptoHash, types::AccountId};
+use near_primitives::types::AccountId;
 use std::str::FromStr;
 
 #[derive(Subcommand, Debug)]

@@ -109,7 +109,7 @@ impl FastBridge {
             token_id.to_string(),
             "ft_transfer_call".to_string(),
             args,
-            20_000_000_000_000,
+            200_000_000_000_000,
             1,
         )
         .await?;
@@ -176,7 +176,7 @@ impl FastBridge {
             self.fast_bridge_account_id()?.to_string(),
             "lp_unlock".to_string(),
             args,
-            40_000_000_000_000,
+            120_000_000_000_000,
             0,
         )
         .await?;
