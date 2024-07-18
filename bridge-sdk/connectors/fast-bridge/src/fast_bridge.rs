@@ -161,7 +161,7 @@ impl FastBridge {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
-        let proof = eth_proof::get_proof_for_event(tx_hash, log_index, eth_endpoint).await?;
+        let proof = eth_proof::get_event_proof(tx_hash, log_index, eth_endpoint).await?;
 
         let serialized_proof = serde_json::to_string(&proof).unwrap();
         let args = format!(r#"{{"proof":{serialized_proof}}}"#)
