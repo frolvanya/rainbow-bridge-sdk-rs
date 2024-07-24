@@ -124,7 +124,7 @@ impl FastBridge {
 
     /// Completes fast bridge transfer by sending tokens to the recipient on Ethereum. The proof from this transaction is to be used to unlock tokens on NEAR for unlock_recipient
     #[tracing::instrument(skip_all, name = "TRANSFER ON ETH")]
-    pub async fn transfer_on_eth(
+    pub async fn complete_transfer_on_eth(
         &self,
         token: Address,
         recipient: Address,

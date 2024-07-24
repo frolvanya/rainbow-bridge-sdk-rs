@@ -9,7 +9,7 @@ pub const NEAR_LIGHT_CLIENT_ETH_ADDRESS_MAINNET: &str =
 pub const ETH_CONNECTOR_ACCOUNT_ID_MAINNET: &str = "aurora";
 pub const ETH_CUSTODIAN_ADDRESS_MAINNET: &str = "0x6BFaD42cFC4EfC96f529D786D643Ff4A8B89FA52";
 pub const FAST_BRIDGE_ACCOUNT_ID_MAINNET: &str = "fast.bridge.near";
-pub const FAST_BRIDGE_ADDRESS_MAINNET: &str = "0xc5e985976d9b521904ad96306356eca0fe4f3a1f";
+pub const FAST_BRIDGE_ADDRESS_MAINNET: &str = "0xC5E985976d9b521904AD96306356ECA0fE4F3a1f";
 
 /// Testnet
 pub const NEAR_RPC_TESTNET: &str = "https://rpc.testnet.near.org/";

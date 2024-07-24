@@ -3,7 +3,7 @@ use clap::Subcommand;
 use ethers_core::types::{Address, TxHash};
 use fast_bridge::{FastBridge, FastBridgeBuilder};
 use near_primitives::types::AccountId;
-use std::str::FromStr;
+use std::{ops::Add, str::FromStr, time::{Duration, SystemTime, UNIX_EPOCH}};
 
 #[derive(Subcommand, Debug)]
 pub enum FastBridgeSubCommand {
@@ -19,11 +19,11 @@ pub enum FastBridgeSubCommand {
         #[clap(short, long)]
         recipient: String,
         #[clap(short, long)]
-        valid_till: u64,
+        valid_till: Option<u64>,
         #[command(flatten)]
         config_cli: CliConfig,
     },
-    TransferOnEth {
+    CompleteTransferOnEth {
         #[clap(short, long)]
         token: String,
         #[clap(short, long)]
@@ -68,6 +68,17 @@ pub async fn match_subcommand(cmd: FastBridgeSubCommand, network: Network) {
             valid_till,
             config_cli,
         } => {
+            let valid_till = valid_till.unwrap_or_else(|| {
+                let duration = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .expect("Coudn't calculate valid_till");
+                // 30 minutes as default fast bridge transfer timeout
+                duration.add(Duration::from_secs(60 * 30))
+                    .as_secs()
+                    .checked_mul(1_000_000_000)
+                    .expect("Coudn't calculate valid_till")
+            });
+
             fast_bridge(network, config_cli)
                 .transfer(
                     AccountId::from_str(&token).expect("Invalid token"),
@@ -80,7 +91,7 @@ pub async fn match_subcommand(cmd: FastBridgeSubCommand, network: Network) {
                 .await
                 .unwrap();
         }
-        FastBridgeSubCommand::TransferOnEth {
+        FastBridgeSubCommand::CompleteTransferOnEth {
             token,
             amount,
             recipient,
@@ -90,7 +101,7 @@ pub async fn match_subcommand(cmd: FastBridgeSubCommand, network: Network) {
             config_cli,
         } => {
             fast_bridge(network, config_cli)
-                .transfer_on_eth(
+                .complete_transfer_on_eth(
                     Address::from_str(&token).expect("Invalid token"),
                     Address::from_str(&recipient).expect("Invalid recipient"),
                     nonce.into(),
