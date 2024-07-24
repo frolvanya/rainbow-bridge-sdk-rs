@@ -23,7 +23,7 @@ pub struct EventProof {
     pub proof: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, BorshSerialize)]
 pub struct StorageSlotProof {
     pub header_data: Vec<u8>,
     pub account_proof: Vec<Vec<u8>>,

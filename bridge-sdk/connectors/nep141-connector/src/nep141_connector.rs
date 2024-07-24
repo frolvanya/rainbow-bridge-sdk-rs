@@ -244,7 +244,7 @@ impl Nep141Connector {
 
         let mut buffer: Vec<u8> = Vec::new();
         proof_data.serialize(&mut buffer).map_err(|_| {
-            BridgeSdkError::NearProofError("Falied to deserialize proof".to_string())
+            BridgeSdkError::NearProofError("Failed to deserialize proof".to_string())
         })?;
 
         let factory = self.bridge_token_factory()?;

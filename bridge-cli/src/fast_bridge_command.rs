@@ -55,6 +55,12 @@ pub enum FastBridgeSubCommand {
         #[command(flatten)]
         config_cli: CliConfig,
     },
+    Unlock {
+        #[clap(short, long)]
+        nonce: u64,
+        #[command(flatten)]
+        config_cli: CliConfig,
+    },
 }
 
 pub async fn match_subcommand(cmd: FastBridgeSubCommand, network: Network) {
@@ -139,6 +145,12 @@ pub async fn match_subcommand(cmd: FastBridgeSubCommand, network: Network) {
                     }),
                     None,
                 )
+                .await
+                .unwrap();
+        }
+        FastBridgeSubCommand::Unlock { nonce, config_cli } => {
+            fast_bridge(network, config_cli)
+                .unlock(nonce)
                 .await
                 .unwrap();
         }
