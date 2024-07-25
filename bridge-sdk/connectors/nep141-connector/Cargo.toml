@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 borsh.workspace = true
-thiserror.workspace = true
 ethers.workspace = true
 hex.workspace = true
 near-crypto.workspace = true
