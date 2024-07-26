@@ -1,4 +1,5 @@
 use borsh::BorshSerialize;
+use ethers::types::Address;
 use hex::FromHex;
 use near_primitives::types::AccountId;
 use serde::Deserialize;
@@ -27,6 +28,18 @@ impl<'de> Deserialize<'de> for EthAddress {
         }
         let result = Vec::from_hex(&s).map_err(|err| serde::de::Error::custom(err.to_string()))?;
         Ok(EthAddress(result.try_into().unwrap()))
+    }
+}
+
+impl From<Address> for EthAddress {
+    fn from(address: Address) -> EthAddress {
+        EthAddress(address.0)
+    }
+}
+
+impl Into<Address> for EthAddress {
+    fn into(self) -> Address {
+        Address::from_slice(&self.0)
     }
 }
 

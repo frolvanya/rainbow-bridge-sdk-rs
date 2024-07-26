@@ -18,13 +18,13 @@ abigen!(
 
 #[derive(Builder)]
 pub struct FastBridge {
-    #[doc = r"Ethereum RPC endpoint. Required for `transfer_on_eth`, `lp_unlock`"]
+    #[doc = r"Ethereum RPC endpoint. Required for `complete_transfer_on_eth`, `lp_unlock`"]
     eth_endpoint: Option<String>,
-    #[doc = r"Ethereum chain id. Required for `transfer_on_eth`, `lp_unlock`"]
+    #[doc = r"Ethereum chain id. Required for `complete_transfer_on_eth`, `lp_unlock`"]
     eth_chain_id: Option<u64>,
-    #[doc = r"Ethereum private key. Required for `transfer_on_eth`"]
+    #[doc = r"Ethereum private key. Required for `complete_transfer_on_eth`"]
     eth_private_key: Option<String>,
-    #[doc = r"NEAR RPC endpoint. Required for `transfer`, `lp_unlock`, `withdraw`"]
+    #[doc = r"NEAR RPC endpoint. Required for `transfer`, `complete_transfer_on_eth`, `lp_unlock`, `withdraw`"]
     near_endpoint: Option<String>,
     #[doc = r"NEAR private key. Required for `transfer`, `lp_unlock`, `withdraw`"]
     near_private_key: Option<String>,
@@ -32,7 +32,7 @@ pub struct FastBridge {
     near_signer: Option<String>,
     #[doc = r"Fast Bridge account id on Near. Required for `transfer`, `lp_unlock`, `withdraw`"]
     fast_bridge_account_id: Option<String>,
-    #[doc = r"Fast bridge address on Ethereum. Required for `transfer_on_eth`"]
+    #[doc = r"Fast bridge address on Ethereum. Required for `complete_transfer_on_eth`"]
     fast_bridge_address: Option<String>,
 }
 
@@ -55,14 +55,14 @@ impl FastBridge {
             valid_till,
             transfer: TransferDataEthereum {
                 token_near: token_id.clone(),
-                token_eth: EthAddress(eth_token_address.0),
+                token_eth: eth_token_address.into(),
                 amount: NearU128(amount),
             },
             fee: TransferDataNear {
                 token: token_id.clone(),
                 amount: NearU128(fee_amount),
             },
-            recipient: EthAddress(recipient.0),
+            recipient: recipient.into(),
             valid_till_block_height: None,
             aurora_sender: None,
         };
@@ -100,22 +100,36 @@ impl FastBridge {
     #[tracing::instrument(skip_all, name = "TRANSFER ON ETH")]
     pub async fn complete_transfer_on_eth(
         &self,
-        token: Address,
-        recipient: Address,
         nonce: U256,
-        amount: U256,
         unlock_recipient: String,
-        valid_till_block_height: U256,
     ) -> Result<TxHash> {
         let fast_bridge = self.fast_bridge_contract()?;
+        let near_endpoint = self.near_endpoint()?;
+
+        let response = near_rpc_client::view(
+            near_endpoint,
+            AccountId::from_str(self.fast_bridge_account_id()?)
+                .map_err(|_| BridgeSdkError::ConfigError("Invalid fast bridge account id".to_string()))?,
+            "get_pending_transfer".to_string(),
+            json!({
+                "id": nonce.to_string(),
+            })
+        ).await?;
+
+        let json = String::from_utf8(response)?;
+        let pending_transfer: (AccountId, TransferMessage) = serde_json::from_str(&json)?;
+
+        let amount = pending_transfer.1.transfer.amount.0.into();
         let transfer_call = fast_bridge
             .transfer_tokens(
-                token,
-                recipient,
+                pending_transfer.1.transfer.token_eth.into(),
+                pending_transfer.1.recipient.into(),
                 nonce,
                 amount,
                 unlock_recipient,
-                valid_till_block_height,
+                pending_transfer.1.valid_till_block_height
+                    .ok_or(BridgeSdkError::UnknownError)?
+                    .into(),
             )
             .value(amount);
 
