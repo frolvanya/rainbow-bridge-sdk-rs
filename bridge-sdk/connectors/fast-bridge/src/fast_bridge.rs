@@ -2,6 +2,7 @@ use base64::prelude::*;
 use borsh::BorshSerialize;
 use bridge_connector_common::result::{BridgeSdkError, Result};
 use derive_builder::Builder;
+use eth_rpc_client::EthRPCClient;
 use ethers::prelude::*;
 use near_crypto::SecretKey;
 use near_primitives::{hash::CryptoHash, types::AccountId};
@@ -145,11 +146,26 @@ impl FastBridge {
 
     /// Unlocks tokens on Near following a successful transfer completion on Ethereum.
     #[tracing::instrument(skip_all, name = "LP UNLOCK")]
-    pub async fn lp_unlock(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
+    pub async fn lp_unlock(&self, tx_hash: TxHash) -> Result<CryptoHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
-        let proof = eth_proof::get_event_proof(tx_hash, log_index, eth_endpoint).await?;
+        let eth_rpc_client = EthRPCClient::new(eth_endpoint);
+        let tx_receipt = eth_rpc_client
+            .get_transaction_receipt_by_hash(&tx_hash)
+            .await?;
+
+        // keccak(TransferTokens(uint256,address,address,address,uint256,string,bytes32))
+        let log_to_find = H256::from_str("0xed54b7aec45dbd5851e5b6484f6fbc0e5990e127a8f1eea7a1e113eba6bfacf9")
+            .map_err(|_| BridgeSdkError::UnknownError)?;
+
+        let log = tx_receipt
+            .logs
+            .iter()
+            .find(|log| log.topics[0] == log_to_find)
+            .ok_or(BridgeSdkError::EthProofError("Log to generate proof from not found".to_owned()))?;
+
+        let proof = eth_proof::get_event_proof(tx_hash, log.log_index.as_u64(), eth_endpoint).await?;
 
         let serialized_proof = serde_json::to_string(&proof)?;
         let args = format!(r#"{{"proof":{serialized_proof}}}"#)

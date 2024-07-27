@@ -1,4 +1,4 @@
-use crate::eth_rpc_client::EthClientError;
+use eth_rpc_client::EthClientError;
 use cita_trie::TrieError;
 
 #[derive(thiserror::Error, Debug)]

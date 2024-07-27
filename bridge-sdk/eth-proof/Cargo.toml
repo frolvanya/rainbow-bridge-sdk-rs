@@ -10,8 +10,10 @@ tokio.workspace = true
 ethereum-types.workspace = true
 serde.workspace = true
 hex.workspace = true
-serde_json.workspace = true
-reqwest.workspace = true
 cita_trie.workspace = true
 rlp.workspace = true
 hasher.workspace = true
+eth-rpc-client = { path = "../eth-rpc-client" }
+
+[dev-dependencies]
+serde_json.workspace = true

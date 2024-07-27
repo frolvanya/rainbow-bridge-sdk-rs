@@ -1,4 +1,5 @@
-use eth_proof::{EthClientError, EthProofError};
+use eth_proof::EthProofError;
+use eth_rpc_client::EthClientError;
 use ethers::{
     contract::ContractError,
     middleware::SignerMiddleware,
@@ -72,6 +73,12 @@ impl From<EthProofError> for BridgeSdkError {
             }
             EthProofError::Other(e) => BridgeSdkError::EthProofError(e),
         }
+    }
+}
+
+impl From<EthClientError> for BridgeSdkError {
+    fn from(error: EthClientError) -> Self {
+        BridgeSdkError::EthRpcError(EthRpcError::EthClientError(error))
     }
 }
 

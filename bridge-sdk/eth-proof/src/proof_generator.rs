@@ -1,9 +1,7 @@
-use crate::{
-    error::EthProofError,
-    eth_rpc_client::{
-        types::{BlockHeader, Log, StorageProof, TransactionReceipt, U8},
-        EthRPCClient,
-    },
+use crate::error::EthProofError;
+use eth_rpc_client::{
+    types::{BlockHeader, Log, StorageProof, TransactionReceipt, U8},
+    EthRPCClient,
 };
 use borsh::BorshSerialize;
 use cita_trie::{MemoryDB, PatriciaTrie, Trie};

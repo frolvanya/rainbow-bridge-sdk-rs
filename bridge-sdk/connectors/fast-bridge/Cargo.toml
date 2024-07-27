@@ -16,5 +16,6 @@ serde_json.workspace = true
 serde.workspace = true
 tiny-keccak.workspace = true
 eth-proof = { path = "../../eth-proof" }
+eth-rpc-client = { path = "../../eth-rpc-client" }
 bridge-connector-common = { path = "../bridge-connector-common" }
 near-rpc-client = { path = "../../near-rpc-client" }

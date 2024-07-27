@@ -1,0 +1,13 @@
+[package]
+name = "eth-rpc-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror.workspace = true
+serde_json.workspace = true
+ethereum-types.workspace = true
+reqwest.workspace = true
+hex.workspace = true
+serde.workspace = true
+rlp.workspace = true
