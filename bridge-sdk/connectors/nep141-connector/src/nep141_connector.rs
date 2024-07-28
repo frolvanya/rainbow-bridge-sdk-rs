@@ -1,6 +1,7 @@
 use borsh::BorshSerialize;
 use bridge_connector_common::result::{BridgeSdkError, Result};
 use eth_proof;
+use eth_rpc_client::EthRPCClient;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_light_client_on_eth::NearOnEthClient;
@@ -313,11 +314,26 @@ impl Nep141Connector {
 
     /// Withdraws NEP-141 tokens from the token locker. Requires a proof from the burn transaction on Ethereum
     #[tracing::instrument(skip_all, name = "FINALIZE WITHDRAW")]
-    pub async fn finalize_withdraw(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
+    pub async fn finalize_withdraw(&self, tx_hash: TxHash) -> Result<CryptoHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
-        let proof = eth_proof::get_event_proof(tx_hash, log_index, eth_endpoint).await?;
+        let eth_rpc_client = EthRPCClient::new(eth_endpoint);
+        let tx_receipt = eth_rpc_client
+            .get_transaction_receipt_by_hash(&tx_hash)
+            .await?;
+
+        // keccak(Withdraw(string,address,uint256,string,address))
+        let log_to_find = H256::from_str("0x7f3525a267b8c431f1464ccece869a0f8543a71c16fd32c432f25c2525bdcd7e")
+            .map_err(|_| BridgeSdkError::UnknownError)?;
+
+        let log = tx_receipt
+            .logs
+            .iter()
+            .find(|log| log.topics[0] == log_to_find)
+            .ok_or(BridgeSdkError::EthProofError("Log to generate proof from not found".to_owned()))?;
+
+        let proof = eth_proof::get_event_proof(tx_hash, log.log_index.as_u64(), eth_endpoint).await?;
 
         let mut args = Vec::new();
         proof

@@ -1,5 +1,6 @@
 use borsh::BorshSerialize;
 use bridge_connector_common::result::{BridgeSdkError, Result};
+use eth_rpc_client::EthRPCClient;
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
 use near_light_client_on_eth::NearOnEthClient;
@@ -90,11 +91,26 @@ impl EthConnector {
 
     /// Generates a proof of the deposit transaction and uses it to mint nETH either on Near or Aurora, depending on the recipient field of the deposit transaction
     #[tracing::instrument(skip_all, name = "FINALIZE DEPOSIT")]
-    pub async fn finalize_deposit(&self, tx_hash: TxHash, log_index: u64) -> Result<CryptoHash> {
+    pub async fn finalize_deposit(&self, tx_hash: TxHash) -> Result<CryptoHash> {
         let eth_endpoint = self.eth_endpoint()?;
         let near_endpoint = self.near_endpoint()?;
 
-        let proof = eth_proof::get_event_proof(tx_hash, log_index, eth_endpoint).await?;
+        let eth_rpc_client = EthRPCClient::new(eth_endpoint);
+        let tx_receipt = eth_rpc_client
+            .get_transaction_receipt_by_hash(&tx_hash)
+            .await?;
+
+        // keccak(Deposited(address,string,uint256,uint256))
+        let log_to_find = H256::from_str("0xd142439c278e25dad9a50766f153d0e3d2d7bf2bd16fc2781c4bd494b2b15a9d")
+            .map_err(|_| BridgeSdkError::UnknownError)?;
+
+        let log = tx_receipt
+            .logs
+            .iter()
+            .find(|log| log.topics[0] == log_to_find)
+            .ok_or(BridgeSdkError::EthProofError("Log to generate proof from not found".to_owned()))?;
+
+        let proof = eth_proof::get_event_proof(tx_hash, log.log_index.as_u64(), eth_endpoint).await?;
 
         let mut args = Vec::new();
         proof

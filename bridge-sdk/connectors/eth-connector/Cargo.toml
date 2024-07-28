@@ -15,6 +15,7 @@ borsh.workspace = true
 near-crypto.workspace = true
 tracing.workspace = true
 eth-proof = { path = "../../eth-proof" }
+eth-rpc-client = { path = "../../eth-rpc-client" }
 near-rpc-client = { path = "../../near-rpc-client" }
 near-light-client-on-eth = { path = "../../near-light-client-on-eth" }
 bridge-connector-common = { path = "../bridge-connector-common" }
