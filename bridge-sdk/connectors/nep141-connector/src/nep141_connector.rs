@@ -6,18 +6,22 @@ use near_crypto::SecretKey;
 use near_light_client_on_eth::NearOnEthClient;
 use near_primitives::{
     hash::CryptoHash,
-    types::{AccountId, TransactionOrReceiptId},
+    types::{AccountId, TransactionOrReceiptId}, views::ExecutionStatusView,
 };
 use std::{str::FromStr, sync::Arc};
 use tracing;
 
+use crate::omni_types::{OmniAddress, TransferMessagePayload};
+
 abigen!(
     BridgeTokenFactory,
     r#"[
+      struct BridgeDeposit { uint128 nonce; string token; uint128 amount; address recipient; address relayer; }
       function newBridgeToken(bytes memory proofData, uint64 proofBlockHeight) external returns (address)
       function deposit(bytes memory proofData, uint64 proofBlockHeight) external
       function withdraw(string memory token, uint128 amount, string memory recipient) external
       function nearToEthToken(string calldata nearTokenId) external view returns (address)
+      function deposit_omni(bytes calldata, BridgeDeposit calldata) external
     ]"#
 );
 
@@ -175,13 +179,13 @@ impl Nep141Connector {
         &self,
         near_token_id: String,
         amount: u128,
-        eth_receiver: String,
+        receiver: String,
     ) -> Result<CryptoHash> {
         let near_endpoint = self.near_endpoint()?;
         let token_locker = self.token_locker_id()?.to_string();
 
         let args = format!(
-            r#"{{"receiver_id":"{token_locker}","amount":"{amount}","msg":"{eth_receiver}"}}"#
+            r#"{{"receiver_id":"{token_locker}","amount":"{amount}","msg":"{receiver}"}}"#
         )
         .to_string()
         .into_bytes();
@@ -240,6 +244,73 @@ impl Nep141Connector {
 
         let factory = self.bridge_token_factory()?;
         let call = factory.deposit(buffer.into(), proof_block_height);
+        let tx = call.send().await?;
+
+        tracing::info!(tx_hash = format!("{:?}", tx.tx_hash()), "Sent finalize deposit transaction");
+        
+        Ok(tx.tx_hash())
+    }
+
+    #[tracing::instrument(skip_all, name = "FINALIZE DEPOSIT OMNI")]
+    pub async fn finalize_deposit_omni(
+        &self,
+        transaction_hash: CryptoHash,
+        sender_id: Option<AccountId>
+    ) -> Result<TxHash> {
+        let near_endpoint = self.near_endpoint()?;
+        let factory = self.bridge_token_factory()?;
+
+        let sender_id = sender_id.unwrap_or(self.near_account_id()?);
+        let sign_tx = near_rpc_client::wait_for_tx_final_outcome(
+            transaction_hash,
+            sender_id,
+            near_endpoint,
+            30
+        ).await?;
+
+        let payload_log = &sign_tx.receipts_outcome
+            .iter()
+            .find(|receipt| receipt.outcome.executor_id == "omni-locker.test1-dev.testnet" 
+                && receipt.outcome.logs.len() > 0)
+            .ok_or(BridgeSdkError::UnknownError)?
+            .outcome.logs[0];
+
+        let payload: TransferMessagePayload = serde_json::from_str(payload_log)
+            .map_err(|_| BridgeSdkError::UnknownError)?;
+
+        let signature_outcome = &sign_tx.receipts_outcome
+            .iter()
+            .find(|receipt| receipt.outcome.logs.len() > 1 && receipt.outcome.logs[0].contains("Signature is ready"))
+            .ok_or(BridgeSdkError::UnknownError)?
+            .outcome.status;
+
+        let signature = match signature_outcome {
+            ExecutionStatusView::SuccessValue(val) => {
+                val.clone()
+            },
+            _ => {
+                return Err(BridgeSdkError::UnknownError);
+            }
+        };
+
+        let bridge_deposit = BridgeDeposit {
+            nonce: payload.nonce,
+            token: payload.token.to_string(),
+            amount: payload.amount,
+            recipient: match payload.recipient { 
+                OmniAddress::Eth(addr) => H160(addr.0),
+                _ => return Err(BridgeSdkError::UnknownError)
+            },
+            relayer: match payload.relayer {
+                Some(omni_addr) => match omni_addr {
+                    OmniAddress::Eth(addr) => H160(addr.0),
+                    _ => return Err(BridgeSdkError::UnknownError)
+                },
+                None => H160::zero()
+            }
+        };
+
+        let call = factory.deposit_omni(signature.into(), bridge_deposit);
         let tx = call.send().await?;
 
         tracing::info!(tx_hash = format!("{:?}", tx.tx_hash()), "Sent finalize deposit transaction");
@@ -381,6 +452,19 @@ impl Nep141Connector {
             })
     }
 
+    fn near_account_id(&self) -> Result<AccountId> {
+        self
+            .near_signer
+            .as_ref()
+            .ok_or(BridgeSdkError::ConfigError(
+                "Near signer account id is not set".to_string(),
+            ))?
+            .parse::<AccountId>()
+            .map_err(|_| BridgeSdkError::ConfigError(
+                "Invalid near signer account id".to_string(),
+            ))
+    }
+
     fn near_signer(&self) -> Result<near_crypto::InMemorySigner> {
         let near_private_key =
             self.near_private_key
@@ -388,17 +472,10 @@ impl Nep141Connector {
                 .ok_or(BridgeSdkError::ConfigError(
                     "Near account private key is not set".to_string(),
                 ))?;
-        let near_signer = self
-            .near_signer
-            .as_ref()
-            .ok_or(BridgeSdkError::ConfigError(
-                "Near signer account id is not set".to_string(),
-            ))?;
+        let near_signer_id = self.near_account_id()?;
 
         Ok(near_crypto::InMemorySigner::from_secret_key(
-            AccountId::from_str(near_signer).map_err(|_| {
-                BridgeSdkError::ConfigError("Invalid near signer account id".to_string())
-            })?,
+            near_signer_id,
             SecretKey::from_str(near_private_key)
                 .map_err(|_| BridgeSdkError::ConfigError("Invalid near private key".to_string()))?,
         ))
