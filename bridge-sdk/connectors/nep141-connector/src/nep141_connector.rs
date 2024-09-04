@@ -6,12 +6,17 @@ use near_crypto::SecretKey;
 use near_light_client_on_eth::NearOnEthClient;
 use near_primitives::{
     hash::CryptoHash,
-    types::{AccountId, TransactionOrReceiptId}, views::ExecutionStatusView,
+    types::{AccountId, TransactionOrReceiptId},
 };
 use std::{str::FromStr, sync::Arc};
 use tracing;
+use crate::omni_types::{OmniAddress, TransferMessagePayload, Signature};
 
-use crate::omni_types::{OmniAddress, TransferMessagePayload};
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct TransferLog {
+    message_payload: TransferMessagePayload,
+    signature: Signature,
+}
 
 abigen!(
     BridgeTokenFactory,
@@ -88,7 +93,7 @@ impl Nep141Connector {
             "log_metadata".to_string(),
             args,
             300_000_000_000_000,
-            0,
+            200_000_000_000_000_000_000_000,
         )
         .await?;
 
@@ -258,7 +263,6 @@ impl Nep141Connector {
         sender_id: Option<AccountId>
     ) -> Result<TxHash> {
         let near_endpoint = self.near_endpoint()?;
-        let factory = self.bridge_token_factory()?;
 
         let sender_id = sender_id.unwrap_or(self.near_account_id()?);
         let sign_tx = near_rpc_client::wait_for_tx_final_outcome(
@@ -268,40 +272,34 @@ impl Nep141Connector {
             30
         ).await?;
 
-        let payload_log = &sign_tx.receipts_outcome
+        let transfer_log = &sign_tx.receipts_outcome
             .iter()
-            .find(|receipt| receipt.outcome.executor_id == "omni-locker.test1-dev.testnet" 
-                && receipt.outcome.logs.len() > 0)
+            .find(|receipt| receipt.outcome.logs.len() > 1 && receipt.outcome.logs[0].contains("SignTransferEvent"))
             .ok_or(BridgeSdkError::UnknownError)?
             .outcome.logs[0];
 
-        let payload: TransferMessagePayload = serde_json::from_str(payload_log)
+        self.finalize_deposit_omni_with_log(&transfer_log).await
+    }
+
+    #[tracing::instrument(skip_all, name = "FINALIZE DEPOSIT OMNI WITH LOG")]
+    pub async fn finalize_deposit_omni_with_log(
+        &self,
+        transfer_log: &str
+    ) -> Result<TxHash> {
+        let factory = self.bridge_token_factory()?;
+
+        let transfer_log: TransferLog = serde_json::from_str(transfer_log)
             .map_err(|_| BridgeSdkError::UnknownError)?;
 
-        let signature_outcome = &sign_tx.receipts_outcome
-            .iter()
-            .find(|receipt| receipt.outcome.logs.len() > 1 && receipt.outcome.logs[0].contains("Signature is ready"))
-            .ok_or(BridgeSdkError::UnknownError)?
-            .outcome.status;
-
-        let signature = match signature_outcome {
-            ExecutionStatusView::SuccessValue(val) => {
-                val.clone()
-            },
-            _ => {
-                return Err(BridgeSdkError::UnknownError);
-            }
-        };
-
         let bridge_deposit = BridgeDeposit {
-            nonce: payload.nonce,
-            token: payload.token.to_string(),
-            amount: payload.amount,
-            recipient: match payload.recipient { 
+            nonce: transfer_log.message_payload.nonce,
+            token: transfer_log.message_payload.token.to_string(),
+            amount: transfer_log.message_payload.amount,
+            recipient: match transfer_log.message_payload.recipient { 
                 OmniAddress::Eth(addr) => H160(addr.0),
                 _ => return Err(BridgeSdkError::UnknownError)
             },
-            relayer: match payload.relayer {
+            relayer: match transfer_log.message_payload.relayer {
                 Some(omni_addr) => match omni_addr {
                     OmniAddress::Eth(addr) => H160(addr.0),
                     _ => return Err(BridgeSdkError::UnknownError)
@@ -310,7 +308,7 @@ impl Nep141Connector {
             }
         };
 
-        let call = factory.deposit_omni(signature.into(), bridge_deposit);
+        let call = factory.deposit_omni(transfer_log.signature.to_bytes().into(), bridge_deposit);
         let tx = call.send().await?;
 
         tracing::info!(tx_hash = format!("{:?}", tx.tx_hash()), "Sent finalize deposit transaction");
