@@ -7,7 +7,7 @@ use near_primitives::{
     hash::CryptoHash,
     types::{AccountId, TransactionOrReceiptId},
 };
-use omni_types::{OmniAddress, TransferLog};
+use omni_types::{near_events::Nep141LockerEvent, OmniAddress};
 use std::{str::FromStr, sync::Arc};
 
 abigen!(
@@ -287,25 +287,36 @@ impl Nep141Connector {
             .outcome
             .logs[0];
 
-        self.finalize_deposit_omni_with_log(transfer_log).await
+        self.finalize_deposit_omni_with_log(
+            serde_json::from_str(transfer_log).map_err(|_| BridgeSdkError::UnknownError)?,
+        )
+        .await
     }
 
     #[tracing::instrument(skip_all, name = "FINALIZE DEPOSIT OMNI WITH LOG")]
-    pub async fn finalize_deposit_omni_with_log(&self, transfer_log: &str) -> Result<TxHash> {
+    pub async fn finalize_deposit_omni_with_log(
+        &self,
+        transfer_log: Nep141LockerEvent,
+    ) -> Result<TxHash> {
         let factory = self.bridge_token_factory()?;
 
-        let transfer_log: TransferLog =
-            serde_json::from_str(transfer_log).map_err(|_| BridgeSdkError::UnknownError)?;
+        let Nep141LockerEvent::SignTransferEvent {
+            message_payload,
+            signature,
+        } = transfer_log
+        else {
+            return Err(BridgeSdkError::UnknownError);
+        };
 
         let bridge_deposit = BridgeDeposit {
-            nonce: transfer_log.message_payload.nonce.into(),
-            token: transfer_log.message_payload.token.to_string(),
-            amount: transfer_log.message_payload.amount.into(),
-            recipient: match transfer_log.message_payload.recipient {
+            nonce: message_payload.nonce.into(),
+            token: message_payload.token.to_string(),
+            amount: message_payload.amount.into(),
+            recipient: match message_payload.recipient {
                 OmniAddress::Eth(addr) => H160(addr.0),
                 _ => return Err(BridgeSdkError::UnknownError),
             },
-            relayer: match transfer_log.message_payload.relayer {
+            relayer: match message_payload.relayer {
                 Some(omni_addr) => match omni_addr {
                     OmniAddress::Eth(addr) => H160(addr.0),
                     _ => return Err(BridgeSdkError::UnknownError),
@@ -314,7 +325,7 @@ impl Nep141Connector {
             },
         };
 
-        let call = factory.deposit_omni(transfer_log.signature.to_bytes().into(), bridge_deposit);
+        let call = factory.deposit_omni(signature.to_bytes().into(), bridge_deposit);
         let tx = call.send().await?;
 
         tracing::info!(
