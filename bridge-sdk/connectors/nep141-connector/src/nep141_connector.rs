@@ -56,17 +56,7 @@ pub struct Nep141Connector {
 impl Nep141Connector {
     /// Creates an empty instance of the bridging client. Property values can be set separately depending on the required use case.
     pub fn new() -> Self {
-        Self {
-            eth_chain_id: None,
-            bridge_token_factory_address: None,
-            eth_endpoint: None,
-            eth_private_key: None,
-            near_endpoint: None,
-            near_private_key: None,
-            near_signer: None,
-            token_locker_id: None,
-            near_light_client_address: None,
-        }
+        Self::default()
     }
 
     /// Logs token metadata to token_locker contract. The proof from this transaction is then used to deploy a corresponding token on Ethereum
