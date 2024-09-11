@@ -13,7 +13,7 @@ use std::{str::FromStr, sync::Arc};
 abigen!(
     BridgeTokenFactory,
     r#"[
-      struct BridgeDeposit { uint128 nonce; string token; uint128 amount; address recipient; address relayer; }
+      struct BridgeDeposit { uint128 nonce; string token; uint128 amount; address recipient; string feeRecipient; }
       function newBridgeToken(bytes memory proofData, uint64 proofBlockHeight) external returns (address)
       function deposit(bytes memory proofData, uint64 proofBlockHeight) external
       function withdraw(string memory token, uint128 amount, string memory recipient) external
@@ -31,7 +31,7 @@ abigen!(
 );
 
 /// Bridging NEAR-originated NEP-141 tokens to Ethereum and back
-#[derive(Builder)]
+#[derive(Builder, Default)]
 pub struct Nep141Connector {
     #[doc = r"Ethereum RPC endpoint. Required for `deploy_token`, `mint`, `burn`, `withdraw`"]
     eth_endpoint: Option<String>,
@@ -74,9 +74,7 @@ impl Nep141Connector {
     pub async fn log_token_metadata(&self, near_token_id: String) -> Result<CryptoHash> {
         let near_endpoint = self.near_endpoint()?;
 
-        let args = format!(r#"{{"token_id":"{near_token_id}"}}"#)
-            .to_string()
-            .into_bytes();
+        let args = format!(r#"{{"token_id":"{near_token_id}"}}"#).into_bytes();
 
         let tx_id = near_rpc_client::change(
             near_endpoint,
@@ -104,9 +102,7 @@ impl Nep141Connector {
         let near_endpoint = self.near_endpoint()?;
         let token_locker = self.token_locker_id()?.to_string();
 
-        let args = format!(r#"{{"account_id":"{token_locker}"}}"#)
-            .to_string()
-            .into_bytes();
+        let args = format!(r#"{{"account_id":"{token_locker}"}}"#).into_bytes();
 
         let tx_id = near_rpc_client::change(
             near_endpoint,
@@ -189,7 +185,6 @@ impl Nep141Connector {
 
         let args =
             format!(r#"{{"receiver_id":"{token_locker}","amount":"{amount}","msg":"{receiver}"}}"#)
-                .to_string()
                 .into_bytes();
 
         let tx_hash = near_rpc_client::change(
@@ -316,13 +311,9 @@ impl Nep141Connector {
                 OmniAddress::Eth(addr) => H160(addr.0),
                 _ => return Err(BridgeSdkError::UnknownError),
             },
-            relayer: match message_payload.relayer {
-                Some(omni_addr) => match omni_addr {
-                    OmniAddress::Eth(addr) => H160(addr.0),
-                    _ => return Err(BridgeSdkError::UnknownError),
-                },
-                None => H160::zero(),
-            },
+            fee_recipient: message_payload
+                .fee_recipient
+                .map_or_else(String::new, |addr| addr.to_string()),
         };
 
         let call = factory.deposit_omni(signature.to_bytes().into(), bridge_deposit);
