@@ -450,9 +450,9 @@ impl Nep141Connector {
 
         let response = near_rpc_client::view(
             near_endpoint,
-            self.token_locker_id()?
-                .parse()
-                .map_err(|_| BridgeSdkError::UnknownError)?,
+            self.token_locker_id()?.parse().map_err(|_| {
+                BridgeSdkError::ConfigError("Invalid near contract account id".to_string())
+            })?,
             "claim_fee".to_string(),
             serialized_args.into(),
         )
