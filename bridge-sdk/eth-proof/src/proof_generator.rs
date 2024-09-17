@@ -5,29 +5,18 @@ use crate::{
         EthRPCClient,
     },
 };
-use borsh::BorshSerialize;
 use cita_trie::{MemoryDB, PatriciaTrie, Trie};
 use ethereum_types::H256;
 use hasher::HasherKeccak;
+use omni_types::prover_args::EvmProof;
 use rlp::RlpStream;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-#[derive(Debug, BorshSerialize, Serialize, Deserialize)]
-pub struct Proof {
-    pub log_index: u64,
-    pub log_entry_data: Vec<u8>,
-    pub receipt_index: u64,
-    pub receipt_data: Vec<u8>,
-    pub header_data: Vec<u8>,
-    pub proof: Vec<Vec<u8>>,
-}
 
 pub async fn get_proof_for_event(
     tx_hash: H256,
     log_index: u64,
     node_url: &str,
-) -> Result<Proof, EthProofError> {
+) -> Result<EvmProof, EthProofError> {
     let client = EthRPCClient::new(node_url);
 
     let receipt = client.get_transaction_receipt_by_hash(&tx_hash).await?;
@@ -49,7 +38,7 @@ pub async fn get_proof_for_event(
         }
     }
 
-    Ok(Proof {
+    Ok(EvmProof {
         log_index: log_index_in_receipt as u64,
         log_entry_data: log_data.ok_or(EthProofError::Other(
             "Log not found based on the transaction hash and index provided".to_string(),
@@ -236,7 +225,7 @@ pub mod tests {
         )
     }
 
-    fn verify_proof(proof: Proof, test_file: &str) {
+    fn verify_proof(proof: EvmProof, test_file: &str) {
         let (
             expected_log_index,
             expected_receipt_index,

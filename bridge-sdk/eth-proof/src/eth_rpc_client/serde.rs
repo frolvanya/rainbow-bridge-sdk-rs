@@ -11,7 +11,7 @@ impl<'de> Deserialize<'de> for Bytes {
         let vec: Vec<u8> =
             hex::decode(&s).map_err(|_| de::Error::custom(format!("Invalid hex string: {}", s)))?;
 
-        Ok(Bytes(vec))
+        Ok(Self(vec))
     }
 }
 
@@ -37,7 +37,7 @@ where
     if let Some(stripped) = s.strip_prefix("0x") {
         Ok(match stripped.len() % 2 {
             0 => stripped.to_owned(),
-            _ => "0".to_owned() + &stripped,
+            _ => "0".to_owned() + stripped,
         })
     } else {
         Err(de::Error::custom(format!(
