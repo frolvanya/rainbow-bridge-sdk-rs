@@ -52,13 +52,9 @@ impl NearOnEthClient {
     }
 
     fn eth_provider(&self) -> Result<Provider<Http>, NearLightClientOnEthError> {
-        Ok(
-            Provider::<Http>::try_from(self.eth_endpoint.clone()).map_err(|_| {
-                NearLightClientOnEthError::ConfigError(
-                    "Ethereum endpoint url is invalid".to_string(),
-                )
-            })?,
-        )
+        Provider::<Http>::try_from(self.eth_endpoint.clone()).map_err(|_| {
+            NearLightClientOnEthError::ConfigError("Ethereum endpoint url is invalid".to_string())
+        })
     }
 }
 
