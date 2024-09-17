@@ -2,12 +2,13 @@ use borsh::BorshSerialize;
 use bridge_connector_common::result::{BridgeSdkError, Result};
 use ethers::{abi::Address, prelude::*};
 use near_crypto::SecretKey;
+use near_jsonrpc_client::methods::query::RpcQueryResponse;
 use near_light_client_on_eth::NearOnEthClient;
 use near_primitives::{
     hash::CryptoHash,
     types::{AccountId, TransactionOrReceiptId},
 };
-use omni_types::{near_events::Nep141LockerEvent, OmniAddress};
+use omni_types::{locker_args::ClaimFeeArgs, near_events::Nep141LockerEvent, OmniAddress};
 use std::{str::FromStr, sync::Arc};
 
 abigen!(
@@ -401,6 +402,65 @@ impl Nep141Connector {
         );
 
         Ok(tx_hash)
+    }
+
+    /// Signs transfer using the token locker
+    #[tracing::instrument(skip_all, name = "SIGN TRANSFER")]
+    pub async fn sign_transfer(
+        &self,
+        origin_nonce: U128,
+        fee_recepient: Option<AccountId>,
+        fee: u64,
+    ) -> Result<CryptoHash> {
+        let near_endpoint = self.near_endpoint()?;
+
+        let tx_hash = near_rpc_client::change(
+            near_endpoint,
+            self.near_signer()?,
+            self.token_locker_id()?.to_string(),
+            "sign_transfer".to_string(),
+            serde_json::json!({
+                "nonce": origin_nonce,
+                "fee_recepient": fee_recepient,
+                "fee": Some(fee)
+            })
+            .to_string()
+            .into_bytes(),
+            300_000_000_000_000,
+            500_000_000_000_000_000_000_000,
+        )
+        .await?;
+
+        tracing::info!(
+            tx_hash = format!("{:?}", tx_hash),
+            "Sent sign transfer transaction"
+        );
+
+        Ok(tx_hash)
+    }
+
+    /// Claims fee on NEAR chain using the token locker
+    #[tracing::instrument(skip_all, name = "CLAIM FEE")]
+    pub async fn claim_fee(&self, args: ClaimFeeArgs) -> Result<RpcQueryResponse> {
+        let near_endpoint = self.near_endpoint()?;
+
+        let mut serialized_args = Vec::new();
+        args.serialize(&mut serialized_args)
+            .map_err(|_| BridgeSdkError::UnknownError)?;
+
+        let response = near_rpc_client::view(
+            near_endpoint,
+            self.token_locker_id()?
+                .parse()
+                .map_err(|_| BridgeSdkError::UnknownError)?,
+            "claim_fee".to_string(),
+            serialized_args.into(),
+        )
+        .await?;
+
+        tracing::info!("Sent claim fee request");
+
+        Ok(response)
     }
 
     fn eth_endpoint(&self) -> Result<&str> {
