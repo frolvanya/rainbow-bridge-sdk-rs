@@ -7,6 +7,7 @@ use near_light_client_on_eth::NearOnEthClient;
 use near_primitives::{
     hash::CryptoHash,
     types::{AccountId, TransactionOrReceiptId},
+    views::FinalExecutionOutcomeView,
 };
 use omni_types::{locker_args::ClaimFeeArgs, near_events::Nep141LockerEvent, OmniAddress};
 use std::{str::FromStr, sync::Arc};
@@ -411,10 +412,10 @@ impl Nep141Connector {
         origin_nonce: U128,
         fee_recepient: Option<AccountId>,
         fee: u64,
-    ) -> Result<CryptoHash> {
+    ) -> Result<FinalExecutionOutcomeView> {
         let near_endpoint = self.near_endpoint()?;
 
-        let tx_hash = near_rpc_client::change(
+        let outcome = near_rpc_client::change_and_wait_for_outcome(
             near_endpoint,
             self.near_signer()?,
             self.token_locker_id()?.to_string(),
@@ -423,20 +424,18 @@ impl Nep141Connector {
                 "nonce": origin_nonce,
                 "fee_recepient": fee_recepient,
                 "fee": Some(fee)
-            })
-            .to_string()
-            .into_bytes(),
+            }),
             300_000_000_000_000,
             500_000_000_000_000_000_000_000,
         )
         .await?;
 
         tracing::info!(
-            tx_hash = format!("{:?}", tx_hash),
+            tx_hash = format!("{:?}", outcome.transaction.hash),
             "Sent sign transfer transaction"
         );
 
-        Ok(tx_hash)
+        Ok(outcome)
     }
 
     /// Claims fee on NEAR chain using the token locker
